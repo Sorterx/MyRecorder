@@ -4,66 +4,42 @@
   <title>My Recorder – Google Drive Uploader</title>
   <meta charset="utf-8">
   <style>
-    /* ─────────  Dark Theme  ───────── */
+    /* ─── Dark Theme ─── */
     :root{
-      --bg        : #121212;
-      --surface   : #1e1e1e;
-      --surface-2 : #262626;
-      --primary   : #4f8cff;
-      --primary-h : #3d6fd6;
-      --success   : #47c566;
-      --danger    : #e04f4f;
-      --font      : #e0e0e0;
-      --font-soft : #b0b0b0;
-      --radius    : 8px;
+      --bg:#121212; --surface:#1e1e1e; --surface-2:#262626;
+      --primary:#4f8cff; --primary-h:#3d6fd6;
+      --success:#47c566; --danger:#e04f4f;
+      --font:#e0e0e0; --font-soft:#b0b0b0; --radius:8px;
     }
-    *{ box-sizing:border-box; }
-    body{
-      margin:0; padding:0 2rem 4rem;
-      background:var(--bg); color:var(--font);
-      font-family:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-      line-height:1.4;
+    *{box-sizing:border-box}
+    body{margin:0;padding:0 2rem 4rem;background:var(--bg);color:var(--font);
+         font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.4}
+    h2{margin:2.5rem 0 1rem;font-weight:600}
+    h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
+    button,select{
+      padding:.5rem 1rem;border:none;border-radius:var(--radius);
+      font-size:.9rem;font-weight:600;cursor:pointer;
+      background:var(--surface-2);color:var(--font);transition:.15s
     }
-    h2{ margin-top:2.5rem; font-weight:600; }
-    h3{ margin-top:1.8rem; color:var(--font-soft); font-weight:500; }
-    button, select{
-      padding:.5rem 1rem; border:none; border-radius:var(--radius);
-      font-size:.9rem; font-weight:600; cursor:pointer;
-      background:var(--surface-2); color:var(--font);
-      transition:.15s;
-    }
-    button:hover{ background:var(--surface); }
-    button.primary { background:var(--primary); color:#fff; }
-    button.primary:hover{ background:var(--primary-h); }
-    button.danger  { background:var(--danger); color:#fff; }
-    button.danger:hover{ background:#c73232; }
-
-    select{ appearance:none; background:var(--surface-2); }
-    details{
-      background:var(--surface); border-radius:var(--radius);
-      padding:.5rem 1rem; margin-top:1rem;
-    }
-    summary{ cursor:pointer; outline:none; }
-    ul{ list-style:none; padding:0; margin:0; }
-    li{ display:flex; align-items:center; gap:.6rem; margin:.4rem 0; }
-
-    video{
-      width:100%; max-width:800px; border-radius:var(--radius);
-      box-shadow:0 0 12px #000a; margin-top:1rem; display:none;
-      background:#000;
-    }
-    .del{
-      cursor:pointer; font-weight:700; color:var(--danger);
-      transition:.15s; user-select:none;
-    }
-    .del:hover{ transform:scale(1.15); }
-
-    #status{ margin-top:1rem; }
-    a{ color:var(--primary); text-decoration:none;}
-    a:hover{ text-decoration:underline; }
-    code{ font-family:monospace; }
-    /* Center container */
-    .container{ max-width:900px; margin:auto; }
+    button:hover{background:var(--surface)}
+    button.primary{background:var(--primary);color:#fff}
+    button.primary:hover{background:var(--primary-h)}
+    button.danger{background:var(--danger);color:#fff}
+    button.danger:hover{background:#c73232}
+    select{appearance:none;background:var(--surface-2)}
+    details{background:var(--surface);border-radius:var(--radius);padding:.5rem 1rem;margin-top:1rem}
+    summary{cursor:pointer;outline:none}
+    ul{list-style:none;padding:0;margin:0}
+    li{display:flex;align-items:center;gap:.6rem;margin:.4rem 0}
+    video{width:100%;max-width:800px;border-radius:var(--radius);
+          box-shadow:0 0 12px #000a;margin-top:1rem;display:none;background:#000}
+    .del{cursor:pointer;font-weight:700;color:var(--danger);transition:.15s;user-select:none}
+    .del:hover{transform:scale(1.15)}
+    #status{min-width:160px;text-align:center;font-weight:600}
+    a{color:var(--primary);text-decoration:none}
+    a:hover{text-decoration:underline}
+    .container{max-width:900px;margin:auto}
+    .row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
   </style>
 </head>
 <body>
@@ -82,19 +58,18 @@
   <p id="folderHint"></p>
 
   <!-- DATEIEN -->
-  <details id="fileSection">
-    <summary id="fileSummary">Aufzeichnungen</summary>
-    <ul id="fileList"></ul>
-  </details>
+  <details id="fileSection"><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
 
   <!-- AUFNAHME -->
   <h3>Aufnahme</h3>
-  <button class="primary" onclick="startRecording()">⏺️ Start</button>
-  <button onclick="stopRecording()" disabled>⏹️ Stop</button>
+  <div class="row">
+    <div>
+      <button class="primary" onclick="startRecording()">⏺️ Start</button>
+      <button onclick="stopRecording()" disabled>⏹️ Stop</button>
+    </div>
+    <div id="status"></div>
+  </div>
   <video id="preview" controls muted playsinline></video>
-
-  <!-- STATUS -->
-  <div id="status"></div>
 </div>
 
 <script>
@@ -109,97 +84,81 @@ let accessToken=null,mediaRecorder=null,recordedChunks=[],currentStream=null;
 function authenticate(){
   location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
 }
-window.onload=()=>{
-  const p=new URLSearchParams(location.hash.slice(1));
-  if(p.has("access_token")){
-    accessToken=p.get("access_token");
-    document.getElementById("authStatus").textContent="✅ eingeloggt";
-    populateFolders();
-  }
+window.onload=()=>{const p=new URLSearchParams(location.hash.slice(1));
+  if(p.has("access_token")){accessToken=p.get("access_token");document.getElementById("authStatus").textContent="✅ eingeloggt";populateFolders();}
 };
 
 /* ORDNER */
 async function populateFolders(){
-  if(!accessToken) return;
-  const sel=document.getElementById("folderSelect"); sel.innerHTML="";
-  document.getElementById("folderHint").textContent="";
+  if(!accessToken)return;
+  const sel=document.getElementById("folderSelect");sel.innerHTML="";document.getElementById("folderHint").textContent="";
   const q="mimeType='application/vnd.google-apps.folder' and trashed=false";
   const res=await gapi(`https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy=name&q=${encodeURIComponent(q)}`);
-  if(res.error){ document.getElementById("folderHint").textContent="❌ "+res.error.message; return;}
-  if(!res.files.length){ document.getElementById("folderHint").textContent="⚠️ Keine Ordner gefunden."; return;}
-  res.files.forEach(f=>{ const o=document.createElement("option"); o.value=f.id;o.textContent=f.name;sel.appendChild(o); });
+  if(res.error){document.getElementById("folderHint").textContent="❌ "+res.error.message;return;}
+  if(!res.files.length){document.getElementById("folderHint").textContent="⚠️ Keine Ordner gefunden.";return;}
+  res.files.forEach(f=>{const o=document.createElement("option");o.value=f.id;o.textContent=f.name;sel.appendChild(o);});
   loadFolderFiles();
 }
 async function createFolder(){
-  if(!accessToken) return alert("Bitte einloggen.");
-  const n=prompt("Ordnername?"); if(!n) return;
+  if(!accessToken)return alert("Bitte einloggen.");
+  const n=prompt("Ordnername?");if(!n)return;
   await fetch("https://www.googleapis.com/drive/v3/files",{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({name:n,mimeType:"application/vnd.google-apps.folder"})});
   populateFolders();
 }
 
 /* DATEIEN */
 async function loadFolderFiles(){
-  const id=document.getElementById("folderSelect").value; if(!id) return;
+  const id=document.getElementById("folderSelect").value;if(!id)return;
   const q=`'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
   const res=await gapi(`https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&q=${encodeURIComponent(q)}`);
-  const ul=document.getElementById("fileList"); ul.innerHTML="";
+  const ul=document.getElementById("fileList");ul.innerHTML="";
   res.files.forEach(f=>{
     const li=document.createElement("li");
-    const del=document.createElement("span"); del.textContent="✖"; del.className="del"; del.onclick=_=>deleteFile(f.id,f.name);
-    const a=document.createElement("a"); a.href=`https://drive.google.com/file/d/${f.id}/view`; a.target="_blank";
+    const del=document.createElement("span");del.textContent="✖";del.className="del";del.onclick=_=>deleteFile(f.id,f.name);
+    const a=document.createElement("a");a.href=`https://drive.google.com/file/d/${f.id}/view`;a.target="_blank";
     a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
-    li.append(del,a); ul.append(li);
+    li.append(del,a);ul.append(li);
   });
   document.getElementById("fileSummary").textContent=`Aufzeichnungen (${res.files.length})`;
 }
-async function deleteFile(id,name){
-  if(!confirm(`"${name}" wirklich löschen?`)) return;
-  setStatus("⏳ Löschen …");
-  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:"Bearer "+accessToken}});
-  setStatus("✅ Datei gelöscht");
-  loadFolderFiles();
-}
+async function deleteFile(id,n){if(!confirm(`"${n}" wirklich löschen?`))return;setStatus("⏳ Löschen …");
+  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:"Bearer "+accessToken}});setStatus("✅ Datei gelöscht");loadFolderFiles();}
 
 /* AUFNAHME */
-async function startRecording(){
-  try{
-    currentStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
-    const vid=document.getElementById("preview");
-    vid.srcObject=currentStream; vid.style.display="block"; await vid.play();
-    recordedChunks=[]; mediaRecorder=new MediaRecorder(currentStream);
-    mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
-    mediaRecorder.onstop=handleStop; mediaRecorder.start();
-    currentStream.getVideoTracks()[0].onended=stopRecording;
-    toggleRecButtons(true);
-  }catch(e){ alert("Freigabe fehlgeschlagen: "+e);}
-}
-function stopRecording(){
-  if(mediaRecorder&&mediaRecorder.state!=="inactive") mediaRecorder.stop();
-  if(currentStream) currentStream.getTracks().forEach(t=>t.stop());
-  toggleRecButtons(false);
-}
+async function startRecording(){try{
+  currentStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+  const v=document.getElementById("preview");v.srcObject=currentStream;v.style.display="block";await v.play();
+  recordedChunks=[];mediaRecorder=new MediaRecorder(currentStream);
+  mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
+  mediaRecorder.onstop=handleStop;mediaRecorder.start();
+  currentStream.getVideoTracks()[0].onended=stopRecording;toggleRecButtons(true);
+}catch(e){alert("Freigabe fehlgeschlagen: "+e);}}
+function stopRecording(){if(mediaRecorder&&mediaRecorder.state!=="inactive")mediaRecorder.stop();if(currentStream)currentStream.getTracks().forEach(t=>t.stop());toggleRecButtons(false);}
 async function handleStop(){
   const blob=new Blob(recordedChunks,{type:"video/webm"});
-  const vid=document.getElementById("preview"); vid.srcObject=null; vid.src=URL.createObjectURL(blob);
-  const c=prompt("Dateiname (optional):");const n=c&&c.trim()?c.trim().replace(/\.webm$/i,"")+".webm":"Recording_"+new Date().toISOString()+".webm";
-  uploadToDrive(blob,n);
+  const v=document.getElementById("preview");v.srcObject=null;v.src=URL.createObjectURL(blob);
+  const c=prompt("Dateiname (optional):");const name=c&&c.trim()?c.trim().replace(/\.webm$/i,"")+".webm":"Recording_"+new Date().toISOString()+".webm";
+  uploadToDrive(blob,name);
 }
-function toggleRecButtons(r){ document.querySelector("button[onclick='startRecording()']").disabled=r; document.querySelector("button[onclick='stopRecording()']").disabled=!r; }
+function toggleRecButtons(r){
+  document.querySelector("button[onclick='startRecording()']").disabled=r;
+  document.querySelector("button[onclick='stopRecording()']").disabled=!r;
+}
 
 /* UPLOAD */
 async function uploadToDrive(blob,name){
-  if(!accessToken) return alert("Bitte einloggen!");
+  if(!accessToken)return alert("Bitte einloggen!");
   const folder=document.getElementById("folderSelect").value;
   const meta={name,mimeType:"video/webm",parents:[folder]};
-  const form=new FormData(); form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"})); form.append("file",blob);
+  const form=new FormData();form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));form.append("file",blob);
   setStatus("⏳ Upload läuft …");
   const up=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+accessToken},body:form});
   const file=await up.json();
   await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`,{method:"POST",headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
-  setStatus(`✅ Hochgeladen: <a href="https://drive.google.com/file/d/${file.id}/view" target="_blank">${name}</a>`);
+  setStatus(`✅ <a href="https://drive.google.com/file/d/${file.id}/view" target="_blank">${name}</a>`);
   loadFolderFiles();
 }
-function setStatus(h){ document.getElementById("status").innerHTML=h; }
+function setStatus(h){document.getElementById("status").innerHTML=h;}
 
 /* HELPER */
 async function gapi(url){return(await fetch(url,{headers:{Authorization:"Bearer "+accessToken}})).json();}
