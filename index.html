@@ -2,10 +2,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Google Drive Uploader FINAL</title>
+  <title>Google Drive Uploader (Vercel Redirect)</title>
 </head>
 <body>
-  <h2>Google Drive Uploader (No Localhost, Final Version)</h2>
+  <h2>Google Drive Uploader (Live Version)</h2>
   <button onclick="authenticate()">Login with Google</button>
   <br><br>
   <input type="file" id="fileInput" />
@@ -18,12 +18,12 @@
     function authenticate() {
       const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
         "client_id=532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com&" +
-        "redirect_uri=https://oauth.pstmn.io/v1/browser-callback&" +
+        "redirect_uri=https://my-recorder.vercel.app&" +
         "response_type=token&" +
         "scope=https://www.googleapis.com/auth/drive.file&" +
         "prompt=consent";
 
-      window.open(authUrl, "_blank");
+      window.location = authUrl;
     }
 
     window.onload = function() {
