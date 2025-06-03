@@ -1,19 +1,24 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Google Drive Uploader (Vercel Redirect)</title>
+  <title>My Recorder – Upload to Google Drive</title>
 </head>
 <body>
-  <h2>Google Drive Uploader (Live Version)</h2>
-  <button onclick="authenticate()">Login with Google</button>
-  <br><br>
-  <input type="file" id="fileInput" />
-  <button onclick="uploadFile()">Upload to Google Drive</button>
+  <h2>My Recorder</h2>
+
+  <button onclick="authenticate()">🔐 Login with Google</button><br><br>
+
+  <button onclick="startRecording()">⏺️ Start Recording</button>
+  <button onclick="stopRecording()" disabled>⏹️ Stop Recording</button><br><br>
+
+  <video id="preview" controls autoplay muted style="width:80%; display:none;"></video><br><br>
+
   <pre id="output"></pre>
 
   <script>
     let accessToken = null;
+    let mediaRecorder;
+    let recordedChunks = [];
 
     function authenticate() {
       const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -22,7 +27,6 @@
         "response_type=token&" +
         "scope=https://www.googleapis.com/auth/drive.file&" +
         "prompt=consent";
-
       window.location = authUrl;
     }
 
@@ -35,38 +39,84 @@
       }
     }
 
-    async function uploadFile() {
-      if (!accessToken) {
-        alert("Please authenticate first.");
-        return;
-      }
+    async function startRecording() {
+      try {
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true
+        });
+        document.getElementById("preview").srcObject = stream;
+        document.getElementById("preview").style.display = "block";
 
-      const fileInput = document.getElementById("fileInput");
-      const file = fileInput.files[0];
-      if (!file) {
-        alert("Please select a file.");
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.ondataavailable = function(e) {
+          if (e.data.size > 0) {
+            recordedChunks.push(e.data);
+          }
+        };
+
+        mediaRecorder.onstop = function() {
+          const blob = new Blob(recordedChunks, { type: "video/webm" });
+          uploadToDrive(blob);
+        };
+
+        mediaRecorder.start();
+        document.querySelector("button[onclick='startRecording()']").disabled = true;
+        document.querySelector("button[onclick='stopRecording()']").disabled = false;
+      } catch (err) {
+        alert("Fehler bei der Bildschirmfreigabe: " + err);
+      }
+    }
+
+    function stopRecording() {
+      mediaRecorder.stop();
+      document.querySelector("button[onclick='startRecording()']").disabled = false;
+      document.querySelector("button[onclick='stopRecording()']").disabled = true;
+    }
+
+    async function uploadToDrive(blob) {
+      if (!accessToken) {
+        alert("Bitte zuerst einloggen.");
         return;
       }
 
       const metadata = {
-        name: file.name,
-        mimeType: file.type
+        name: "Recording_" + new Date().toISOString() + ".webm",
+        mimeType: "video/webm"
       };
 
       const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-      form.append('file', file);
+      form.append("metadata", new Blob([JSON.stringify(metadata)], { type: "application/json" }));
+      form.append("file", blob);
 
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-        method: 'POST',
-        headers: new Headers({
-          'Authorization': 'Bearer ' + accessToken
-        }),
+      const uploadRes = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken
+        },
         body: form
       });
 
-      const json = await res.json();
-      document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+      const uploadData = await uploadRes.json();
+
+      // Set permission: anyoneWithLink can view
+      await fetch("https://www.googleapis.com/drive/v3/files/" + uploadData.id + "/permissions", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer " + accessToken,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          role: "reader",
+          type: "anyone"
+        })
+      });
+
+      const viewLink = "https://drive.google.com/file/d/" + uploadData.id + "/view";
+      document.getElementById("output").innerHTML =
+        "✅ Hochgeladen!\n📎 <a href='" + viewLink + "' target='_blank'>" + viewLink + "</a>";
     }
   </script>
 </body>
