@@ -19,6 +19,7 @@
     let accessToken = null;
     let mediaRecorder;
     let recordedChunks = [];
+    let currentStream = null;
 
     function authenticate() {
       const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -45,6 +46,9 @@
           video: true,
           audio: true
         });
+
+        currentStream = stream;
+
         document.getElementById("preview").srcObject = stream;
         document.getElementById("preview").style.display = "block";
 
@@ -59,10 +63,19 @@
 
         mediaRecorder.onstop = function() {
           const blob = new Blob(recordedChunks, { type: "video/webm" });
+          document.getElementById("preview").srcObject = null;
+          document.getElementById("preview").src = URL.createObjectURL(blob);
+          document.getElementById("preview").play();
           uploadToDrive(blob);
         };
 
         mediaRecorder.start();
+
+        // Wenn der User die Freigabe manuell beendet:
+        stream.getVideoTracks()[0].onended = () => {
+          stopRecording(); // Sicherstellen, dass Upload trotzdem passiert
+        };
+
         document.querySelector("button[onclick='startRecording()']").disabled = true;
         document.querySelector("button[onclick='stopRecording()']").disabled = false;
       } catch (err) {
@@ -71,7 +84,12 @@
     }
 
     function stopRecording() {
-      mediaRecorder.stop();
+      if (mediaRecorder && mediaRecorder.state !== "inactive") {
+        mediaRecorder.stop();
+      }
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop());
+      }
       document.querySelector("button[onclick='startRecording()']").disabled = false;
       document.querySelector("button[onclick='stopRecording()']").disabled = true;
     }
@@ -101,7 +119,6 @@
 
       const uploadData = await uploadRes.json();
 
-      // Set permission: anyoneWithLink can view
       await fetch("https://www.googleapis.com/drive/v3/files/" + uploadData.id + "/permissions", {
         method: "POST",
         headers: {
