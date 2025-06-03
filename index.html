@@ -8,6 +8,7 @@
       --bg:#121212;--surface:#1e1e1e;--surface-2:#262626;
       --primary:#4f8cff;--primary-h:#3d6fd6;--danger:#e04f4f;
       --font:#e0e0e0;--font-soft:#b0b0b0;--radius:8px;
+      --logo-top:40px;--logo-left:40px;--logo-h:140px;
     }
     *{box-sizing:border-box;margin:0;padding:0}
 
@@ -17,44 +18,24 @@
       padding:0 2rem 4rem;
     }
 
-    /* Top Navigation */
-    .topnav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 1rem 2rem;
-      background: var(--surface-2);
-      position: sticky;
-      top: 0;
-      z-index: 999;
+    /* Logo */
+    .logo{
+      position:fixed;top:var(--logo-top);left:var(--logo-left);
+      height:var(--logo-h);user-select:none;z-index:1000;
     }
+    @media(max-width:600px){.logo{height:90px}}
 
-    .nav-left img {
-      height: 60px;
-      user-select: none;
+    /* Auth box */
+    .authBox{
+      position:fixed;top:24px;right:24px;
+      display:flex;align-items:center;gap:.8rem;z-index:1000;
     }
+    .authBox span{font-weight:600}
 
-    .nav-center {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      justify-content: center;
-    }
-
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: .8rem;
-    }
-
-    .nav-right span {
-      font-weight: 600;
-    }
-
+    /* Main wrapper */
     .container{
       max-width:900px;margin:0 auto;
-      padding-top:2rem;
+      padding-top:calc(var(--logo-h) + var(--logo-top) + 40px);
     }
 
     h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
@@ -92,23 +73,22 @@
 </head>
 <body>
 
-<header class="topnav">
-  <div class="nav-left">
-    <img src="/logo.png" alt="My Recorder Logo">
-  </div>
-  <div class="nav-center">
-    <select id="folderSelect"></select>
-    <button onclick="populateFolders()">🔄</button>
-    <button onclick="createFolder()">➕</button>
-    <details><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
-  </div>
-  <div class="nav-right">
-    <button class="primary" onclick="authenticate()">🔐 Login</button>
-    <span id="authStatus"></span>
-  </div>
-</header>
+<img src="/logo.png" alt="My Recorder Logo" class="logo">
+
+<div class="authBox">
+  <button class="primary" onclick="authenticate()">🔐 Login</button>
+  <span id="authStatus"></span>
+</div>
 
 <div class="container">
+
+  <h3>Aufnahme-Ordner</h3>
+  <select id="folderSelect"></select>
+  <button onclick="populateFolders()">🔄</button>
+  <button onclick="createFolder()">➕</button>
+  <p id="folderHint"></p>
+
+  <details><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
 
   <h3>Aufnahme</h3>
   <div class="row">
@@ -126,9 +106,11 @@ const CLIENT_ID="532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleuserco
 const REDIRECT ="https://my-recorder.vercel.app";
 const SCOPE    ="https://www.googleapis.com/auth/drive";
 
+/* ---------- State ---------- */
 let accessToken, mediaRecorder, recordedChunks=[];
 let displayStream, micStream, audioCtx;
 
+/* ---------- Auth ---------- */
 function authenticate(){
   location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
 }
@@ -141,8 +123,10 @@ window.onload=()=>{
   }
 };
 
+/* ---------- Helpers ---------- */
 async function gapi(u){return(await fetch(u,{headers:{Authorization:`Bearer ${accessToken}`}})).json();}
 
+/* ---------- Ordnerfunctions ---------- */
 async function populateFolders(){
   if(!accessToken)return;
   const sel=document.getElementById("folderSelect");sel.innerHTML="";
@@ -171,8 +155,10 @@ async function loadFolderFiles(){
 }
 async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`} });setStatus("✅ gelöscht");loadFolderFiles();}
 
+/* ---------- Recording (HQ Video + Max-Quality Audio) ---------- */
 async function startRecording(){
   try{
+    /* HQ screen capture */
     displayStream=await navigator.mediaDevices.getDisplayMedia({
       video:{
         width:{ideal:1920,max:3840},
@@ -182,6 +168,7 @@ async function startRecording(){
       audio:true
     });
 
+    /* Studio-quality mic (48 kHz, stereo) */
     if(document.getElementById("micToggle").checked){
       try{
         micStream=await navigator.mediaDevices.getUserMedia({
@@ -194,6 +181,7 @@ async function startRecording(){
       }catch{micStream=null;}
     }
 
+    /* Mix audio */
     audioCtx=new AudioContext({sampleRate:48000});
     const dest=audioCtx.createMediaStreamDestination();
     if(displayStream.getAudioTracks().length)
@@ -202,13 +190,16 @@ async function startRecording(){
       audioCtx.createMediaStreamSource(micStream).connect(dest);
 
     const mixed=new MediaStream([...displayStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
+
+    /* Preview */
     const vid=document.getElementById("preview");vid.srcObject=mixed;vid.style.display="block";await vid.play();
 
+    /* Record with VP9 + Opus @ max bitrate (510 kbit/s) */
     recordedChunks=[];
     mediaRecorder=new MediaRecorder(mixed,{
       mimeType:"video/webm;codecs=vp9,opus",
       videoBitsPerSecond:8_000_000,
-      audioBitsPerSecond:510_000
+      audioBitsPerSecond:510_000    /* Opus maximum */
     });
     mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
     mediaRecorder.onstop=handleStop;mediaRecorder.start();
@@ -217,6 +208,7 @@ async function startRecording(){
     toggleBtns(true);
   }catch(e){alert("Start fehlgeschlagen: "+e);}
 }
+
 function stopRecording(){
   mediaRecorder?.state!=="inactive"&&mediaRecorder.stop();
   [displayStream,micStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));
@@ -233,6 +225,7 @@ function toggleBtns(rec){
   document.querySelector("button[onclick='stopRecording()']").disabled=!rec;
 }
 
+/* ---------- Upload ---------- */
 async function upload(blob,name){
   if(!accessToken)return alert("Bitte einloggen!");
   const folder=document.getElementById("folderSelect").value;
@@ -242,7 +235,10 @@ async function upload(blob,name){
   const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:`Bearer ${accessToken}`},body:fd});
   const f=await res.json();
 
+  /* Public link */
   await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
+
+  /* Wait for transcode */
   const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
   setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
   while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata)
@@ -253,12 +249,11 @@ async function upload(blob,name){
 }
 function setStatus(h){document.getElementById("status").innerHTML=h;}
 </script>
-
-<footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
+</body>
+  <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
   <p>
-    <a href="https://my-recorder.vercel.app/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
-    <a href="https://my-recorder.vercel.app/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
+    <a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
+    <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
   </p>
 </footer>
-</body>
 </html>
