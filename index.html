@@ -98,8 +98,7 @@ async function loadFolderFiles(){
   res.files.forEach(f=>{
     const li=document.createElement("li");
     const a=document.createElement("a");
-    a.href=`https://drive.google.com/file/d/${f.id}/view`;
-    a.target="_blank";
+    a.href=`https://drive.google.com/file/d/${f.id}/view`; a.target="_blank";
     a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
     li.appendChild(a); ul.appendChild(li);
   });
@@ -128,7 +127,13 @@ async function handleStop(){
   const blob=new Blob(recordedChunks,{type:"video/webm"});
   const vid=document.getElementById("preview");
   vid.srcObject=null; vid.src=URL.createObjectURL(blob);
-  await uploadToDrive(blob);
+
+  /* ── Neuer Dateiname ── */
+  const custom=prompt("Dateiname (optional):");
+  const finalName = custom && custom.trim() ? custom.trim().replace(/\.webm$/i,"") + ".webm"
+                                            : "Recording_"+new Date().toISOString()+".webm";
+
+  await uploadToDrive(blob, finalName);
 }
 function toggleRecButtons(r){
   document.querySelector("button[onclick='startRecording()']").disabled=r;
@@ -136,10 +141,10 @@ function toggleRecButtons(r){
 }
 
 /* ─── UPLOAD ─── */
-async function uploadToDrive(blob){
+async function uploadToDrive(blob,fileName){
   if(!accessToken) return alert("Bitte einloggen!");
   const folderId=document.getElementById("folderSelect").value;
-  const meta={name:"Recording_"+new Date().toISOString()+".webm",mimeType:"video/webm",parents:[folderId]};
+  const meta={name:fileName,mimeType:"video/webm",parents:[folderId]};
   const form=new FormData();
   form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));
   form.append("file",blob);
