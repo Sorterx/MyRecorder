@@ -22,30 +22,25 @@
     /* logo left top */
     .logo{
       position:fixed;top:14px;left:14px;
-      height:140px;user-select:none;z-index:1000;
+      height:140px;z-index:1000;user-select:none;
     }
     @media(max-width:600px){.logo{height:90px}}
 
-    /* auth buttons right top */
+    /* auth box right top */
     .authBox{
       position:fixed;top:24px;right:24px;
-      display:flex;align-items:center;gap:.8rem;z-index:1000;
+      display:flex;align-items:center;gap:.8rem;
+      z-index:1000;
     }
     .authBox span{font-weight:600}
 
-    /* wrapper below logo */
-    .container{max-width:900px;margin:0 auto;padding-top:200px}
-
-    /* center bar for ordner controls */
-    .folderBar{
-      display:flex;flex-wrap:wrap;justify-content:center;
-      align-items:center;gap:1rem;
-      margin-bottom:1.5rem;
-      text-align:center;
+    /* push content below logo */
+    .container{
+      max-width:900px;margin:0 auto;padding-top:180px;
     }
-    .folderBar h3{margin:0;color:var(--font-soft);font-weight:500}
 
-    /* elements */
+    h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
+
     button,select{
       padding:.55rem 1.1rem;border:none;border-radius:var(--radius);
       font-size:.9rem;font-weight:600;cursor:pointer;
@@ -56,19 +51,19 @@
     button.primary:hover{background:var(--primary-h)}
     select{appearance:none}
 
-    /* file list accordion centred */
-    #fileSection{background:var(--surface);border-radius:var(--radius);
-      padding:.5rem 1rem;max-width:600px;margin:0 auto 2rem}
+    details{background:var(--surface);border-radius:var(--radius);padding:.5rem 1rem;margin-top:1rem}
     summary{cursor:pointer}
     ul{list-style:none}
     li{display:flex;align-items:center;gap:.6rem;margin:.4rem 0}
     .del{cursor:pointer;font-weight:700;color:var(--danger);transition:transform .15s}
     .del:hover{transform:scale(1.2)}
 
-    video{width:100%;max-width:800px;border-radius:var(--radius);
-          box-shadow:0 0 12px #000a;margin-top:1rem;display:none;background:#000}
+    video{
+      width:100%;max-width:800px;border-radius:var(--radius);
+      box-shadow:0 0 12px #000a;margin-top:1rem;display:none;background:#000
+    }
 
-    #status{min-width:220px;text-align:center;font-weight:600;margin-top:.3rem}
+    #status{min-width:220px;text-align:center;font-weight:600}
     a{color:var(--primary);text-decoration:none}
     a:hover{text-decoration:underline}
 
@@ -82,7 +77,7 @@
 <!-- logo -->
 <img src="/logo.png" alt="My Recorder Logo" class="logo">
 
-<!-- auth -->
+<!-- auth controls top-right -->
 <div class="authBox">
   <button class="primary" onclick="authenticate()">🔐 Login</button>
   <span id="authStatus"></span>
@@ -90,18 +85,17 @@
 
 <div class="container">
 
-  <!-- centered folder controls -->
-  <div class="folderBar">
-    <h3>Aufnahme-Ordner</h3>
-    <select id="folderSelect"></select>
-    <button onclick="populateFolders()">🔄</button>
-    <button onclick="createFolder()">➕</button>
-  </div>
+  <!-- ORDNER -->
+  <h3>Aufnahme-Ordner</h3>
+  <select id="folderSelect"></select>
+  <button onclick="populateFolders()">🔄</button>
+  <button onclick="createFolder()">➕</button>
+  <p id="folderHint"></p>
 
-  <!-- file list -->
-  <details id="fileSection"><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
+  <!-- DATEIEN -->
+  <details><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
 
-  <!-- recording -->
+  <!-- AUFNAHME -->
   <h3>Aufnahme</h3>
   <div class="row">
     <button class="primary" onclick="startRecording()">⏺️ Start</button>
@@ -138,7 +132,7 @@ window.onload=()=>{
 /* ---------- Helpers ---------- */
 async function gapi(u){return(await fetch(u,{headers:{Authorization:`Bearer ${accessToken}`}})).json();}
 
-/* ---------- Folder / List ---------- */
+/* ---------- Folder functions ---------- */
 async function populateFolders(){
   if(!accessToken)return;
   const sel=document.getElementById("folderSelect");sel.innerHTML="";
@@ -167,13 +161,52 @@ async function loadFolderFiles(){
 async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`} });setStatus("✅ gelöscht");loadFolderFiles();}
 
 /* ---------- Recording ---------- */
-async function startRecording(){/* unveränderte Logik */}  
-function stopRecording(){/* unveränderte Logik */}  
-async function handleStop(){/* unveränderte Logik */}  
-function toggleBtns(r){document.querySelector("button[onclick='startRecording()']").disabled=r;document.querySelector("button[onclick='stopRecording()']").disabled=!r}
+async function startRecording(){
+  try{
+    displayStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+    if(document.getElementById("micToggle").checked){try{micStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch{micStream=null;}}
+    audioCtx=new AudioContext({sampleRate:48000});
+    const dest=audioCtx.createMediaStreamDestination();
+    const gain=audioCtx.createGain();gain.gain.value=0.7;gain.connect(dest);
+    if(displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(gain);
+    if(micStream) audioCtx.createMediaStreamSource(micStream).connect(gain);
+    const mixed=new MediaStream([...displayStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
+    const vid=document.getElementById("preview");vid.srcObject=mixed;vid.style.display="block";await vid.play();
+    recordedChunks=[];mediaRecorder=new MediaRecorder(mixed,{mimeType:"video/webm;codecs=vp8,opus",videoBitsPerSecond:3000000,audioBitsPerSecond:256000});
+    mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
+    mediaRecorder.onstop=handleStop;mediaRecorder.start();
+    displayStream.getVideoTracks()[0].onended=stopRecording;toggleBtns(true);
+  }catch(e){alert("Start fehlgeschlagen: "+e);}
+}
+function stopRecording(){
+  mediaRecorder?.state!=="inactive"&&mediaRecorder.stop();
+  [displayStream,micStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));
+  audioCtx?.close();audioCtx=null;toggleBtns(false);
+}
+async function handleStop(){
+  const blob=new Blob(recordedChunks,{type:"video/webm"});
+  const vid=document.getElementById("preview");vid.srcObject=null;vid.src=URL.createObjectURL(blob);
+  const base=(prompt("Dateiname (optional):")||"").trim().replace(/\.webm$/i,"")||"Recording_"+new Date().toISOString();
+  upload(blob,`${base}.webm`);
+}
+function toggleBtns(r){document.querySelector("button[onclick='startRecording()']").disabled=r;document.querySelector("button[onclick='stopRecording()']").disabled=!r;}
 
-/* ---------- Upload ---------- */
-async function upload(blob,name){/* unveränderte Logik */}  
+/* ---------- Upload & Poll ---------- */
+async function upload(blob,name){
+  if(!accessToken)return alert("Bitte einloggen!");
+  const folder=document.getElementById("folderSelect").value;
+  const meta={name,mimeType:"video/webm",parents:[folder]};
+  const fd=new FormData();fd.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));fd.append("file",blob);
+  setStatus("⏳ Upload …");
+  const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:`Bearer ${accessToken}`},body:fd});
+  const f=await res.json();
+  await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
+  const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
+  setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
+  while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata) await new Promise(r=>setTimeout(r,5000));
+  setStatus(`✅ <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
+  loadFolderFiles();
+}
 function setStatus(h){document.getElementById("status").innerHTML=h;}
 </script>
 </body>
