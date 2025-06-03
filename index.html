@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Drive Uploader FINAL</title>
+</head>
+<body>
+  <h2>Google Drive Uploader (No Localhost, Final Version)</h2>
+  <button onclick="authenticate()">Login with Google</button>
+  <br><br>
+  <input type="file" id="fileInput" />
+  <button onclick="uploadFile()">Upload to Google Drive</button>
+  <pre id="output"></pre>
+
+  <script>
+    let accessToken = null;
+
+    function authenticate() {
+      const authUrl = "https://accounts.google.com/o/oauth2/v2/auth?" +
+        "client_id=532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com&" +
+        "redirect_uri=https://oauth.pstmn.io/v1/browser-callback&" +
+        "response_type=token&" +
+        "scope=https://www.googleapis.com/auth/drive.file&" +
+        "prompt=consent";
+
+      window.open(authUrl, "_blank");
+    }
+
+    window.onload = function() {
+      const hash = window.location.hash.substr(1);
+      const params = new URLSearchParams(hash);
+      if (params.has("access_token")) {
+        accessToken = params.get("access_token");
+        document.getElementById("output").textContent = "✅ Access token acquired!";
+      }
+    }
+
+    async function uploadFile() {
+      if (!accessToken) {
+        alert("Please authenticate first.");
+        return;
+      }
+
+      const fileInput = document.getElementById("fileInput");
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file.");
+        return;
+      }
+
+      const metadata = {
+        name: file.name,
+        mimeType: file.type
+      };
+
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', file);
+
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        method: 'POST',
+        headers: new Headers({
+          'Authorization': 'Bearer ' + accessToken
+        }),
+        body: form
+      });
+
+      const json = await res.json();
+      document.getElementById("output").textContent = JSON.stringify(json, null, 2);
+    }
+  </script>
+</body>
+</html>
