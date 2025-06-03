@@ -7,7 +7,8 @@
     button, select  { margin:.25rem 0; }
     video           { width:80%; margin-top:1rem; display:none; }
     ul              { list-style:none; padding-left:0; }
-    li              { margin:.25rem 0; }
+    li              { margin:.25rem 0; display:flex; align-items:center; gap:.5rem; }
+    .del            { cursor:pointer; color:#e00; font-weight:bold; }
     #folderHint     { color:red; }
     #status         { margin-top:1rem; font-weight:bold; }
   </style>
@@ -97,12 +98,32 @@ async function loadFolderFiles(){
   const ul=document.getElementById("fileList"); ul.innerHTML="";
   res.files.forEach(f=>{
     const li=document.createElement("li");
+
+    const del=document.createElement("span");
+    del.textContent="✖";
+    del.className="del";
+    del.title="Löschen";
+    del.onclick=()=>deleteFile(f.id,f.name);
+
     const a=document.createElement("a");
-    a.href=`https://drive.google.com/file/d/${f.id}/view`; a.target="_blank";
+    a.href=`https://drive.google.com/file/d/${f.id}/view`;
+    a.target="_blank";
     a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
-    li.appendChild(a); ul.appendChild(li);
+
+    li.appendChild(del);
+    li.appendChild(a);
+    ul.appendChild(li);
   });
   document.getElementById("fileSummary").textContent=`Aufzeichnungen im Ordner (${res.files.length})`;
+}
+
+/* ─── DATEI LÖSCHEN ─── */
+async function deleteFile(id,name){
+  if(!confirm(`"${name}" wirklich löschen?`)) return;
+  setStatus("⏳ Löschen …");
+  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:"Bearer "+accessToken}});
+  setStatus("✅ Datei gelöscht");
+  loadFolderFiles();
 }
 
 /* ─── AUFNAHME ─── */
@@ -128,11 +149,9 @@ async function handleStop(){
   const vid=document.getElementById("preview");
   vid.srcObject=null; vid.src=URL.createObjectURL(blob);
 
-  /* ── Neuer Dateiname ── */
   const custom=prompt("Dateiname (optional):");
-  const finalName = custom && custom.trim() ? custom.trim().replace(/\.webm$/i,"") + ".webm"
+  const finalName = custom && custom.trim() ? custom.trim().replace(/\.webm$/i,"")+".webm"
                                             : "Recording_"+new Date().toISOString()+".webm";
-
   await uploadToDrive(blob, finalName);
 }
 function toggleRecButtons(r){
