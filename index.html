@@ -14,47 +14,42 @@
 <body>
   <h2>My Recorder</h2>
 
-  <!-- ───── AUTH ───── -->
+  <!-- ─── AUTH ─── -->
   <button onclick="authenticate()">🔐 Login mit Google</button>
   <span id="authStatus"></span>
 
-  <!-- ───── ORDNERWAHL ───── -->
+  <!-- ─── ORDNER ─── -->
   <h3>Aufnahme-Ordner wählen</h3>
   <select id="folderSelect"></select>
   <button onclick="populateFolders()">🔄 Ordner neu laden</button>
   <button onclick="createFolder()">➕ Neuen Ordner anlegen</button>
   <p id="folderHint"></p>
 
-  <!-- ───── DATEIEN LISTE ───── -->
+  <!-- ─── DATEIEN ─── -->
   <h3>Aufzeichnungen im Ordner</h3>
   <ul id="fileList"></ul>
 
-  <!-- ───── AUFNAHME ───── -->
+  <!-- ─── AUFNAHME ─── -->
   <h3>Aufnahme</h3>
   <button onclick="startRecording()">⏺️ Start Recording</button>
   <button onclick="stopRecording()" disabled>⏹️ Stop Recording</button>
-
   <video id="preview" controls muted></video>
 
-  <!-- ───── STATUS ───── -->
+  <!-- ─── STATUS ─── -->
   <pre id="output"></pre>
 
 <script>
-/* ===================== CONFIG ===================== */
-const CLIENT_ID   = "532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
-const REDIRECT_URI= "https://my-recorder.vercel.app";
-const SCOPE       = "https://www.googleapis.com/auth/drive";
+/* CONFIG */
+const CLIENT_ID    = "532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
+const REDIRECT_URI = "https://my-recorder.vercel.app";
+const SCOPE        = "https://www.googleapis.com/auth/drive";
 
-/* ===================== GLOBALS ===================== */
-let accessToken   = null;
-let mediaRecorder = null;
-let recordedChunks= [];
-let currentStream = null;
+/* GLOBALS */
+let accessToken = null, mediaRecorder = null, recordedChunks = [], currentStream = null;
 
-/* ===================== AUTH ===================== */
+/* ───────── AUTH ───────── */
 function authenticate() {
-  const url =
-    "https://accounts.google.com/o/oauth2/v2/auth?" +
+  const url = "https://accounts.google.com/o/oauth2/v2/auth?" +
     "client_id="   + CLIENT_ID +
     "&redirect_uri="+ encodeURIComponent(REDIRECT_URI) +
     "&response_type=token" +
@@ -64,62 +59,59 @@ function authenticate() {
 }
 
 window.onload = () => {
-  const params = new URLSearchParams(window.location.hash.slice(1));
-  if (params.has("access_token")) {
-    accessToken = params.get("access_token");
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.has("access_token")) {
+    accessToken = p.get("access_token");
     document.getElementById("authStatus").textContent = "✅ eingeloggt";
     populateFolders();
   }
 };
 
-/* ===================== ORDNERHANDLING ===================== */
+/* ───────── ORDNER ───────── */
 async function populateFolders() {
   if (!accessToken) return;
   const select = document.getElementById("folderSelect");
   select.innerHTML = "";
   document.getElementById("folderHint").textContent = "";
-  try {
-    const res = await gapi(
-      "https://www.googleapis.com/drive/v3/files" +
-      "?q=mimeType='application/vnd.google-apps.folder' and trashed=false" +
-      "&fields=files(id,name)&orderBy=name"
-    );
-    if (!res.files.length) {
-      document.getElementById("folderHint").textContent =
-        "⚠️ Keine Ordner gefunden – erstelle einen neuen.";
-      return;
-    }
-    res.files.forEach(f => {
-      const opt = document.createElement("option");
-      opt.value = f.id; opt.textContent = f.name;
-      select.appendChild(opt);
-    });
-    loadFolderFiles();
-  } catch (e) {
+
+  const query = "mimeType='application/vnd.google-apps.folder' and trashed=false";
+  const res   = await gapi(
+    "https://www.googleapis.com/drive/v3/files" +
+    "?fields=files(id,name)" +
+    "&orderBy=name" +
+    "&q=" + encodeURIComponent(query)
+  );
+
+  if (res.error) {
     document.getElementById("folderHint").textContent =
-      "❌ Fehler beim Laden der Ordner (Prüfe OAuth-Scope).";
+      "❌ " + (res.error.message || "Fehler beim Laden der Ordner.");
+    return;
   }
+  if (!res.files.length) {
+    document.getElementById("folderHint").textContent =
+      "⚠️ Keine Ordner gefunden – erstelle einen neuen.";
+    return;
+  }
+  res.files.forEach(f=>{
+    const o=document.createElement("option");
+    o.value=f.id; o.textContent=f.name; select.appendChild(o);
+  });
+  loadFolderFiles();
 }
 
 async function createFolder() {
   if (!accessToken) return alert("Bitte zuerst einloggen.");
   const name = prompt("Ordnername?");
   if (!name) return;
-  await fetch("https://www.googleapis.com/drive/v3/files", {
-    method : "POST",
-    headers: {
-      Authorization  : "Bearer " + accessToken,
-      "Content-Type" : "application/json"
-    },
-    body: JSON.stringify({
-      name     : name,
-      mimeType : "application/vnd.google-apps.folder"
-    })
+  await fetch("https://www.googleapis.com/drive/v3/files",{
+    method:"POST",
+    headers:{ Authorization:"Bearer "+accessToken,"Content-Type":"application/json" },
+    body:JSON.stringify({ name, mimeType:"application/vnd.google-apps.folder" })
   });
   populateFolders();
 }
 
-/* ===================== DATEIEN LISTEN ===================== */
+/* ───────── DATEIEN LISTEN ───────── */
 async function loadFolderFiles() {
   const folderId = document.getElementById("folderSelect").value;
   if (!folderId) return;
@@ -132,95 +124,76 @@ async function loadFolderFiles() {
   );
   const ul = document.getElementById("fileList");
   ul.innerHTML = "";
-  res.files.forEach(f => {
-    const li   = document.createElement("li");
-    const link = document.createElement("a");
-    link.href        = `https://drive.google.com/file/d/${f.id}/view`;
-    link.target      = "_blank";
-    link.textContent = `${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
-    li.appendChild(link);
-    ul.appendChild(li);
+  res.files.forEach(f=>{
+    const li=document.createElement("li");
+    const a = document.createElement("a");
+    a.href=`https://drive.google.com/file/d/${f.id}/view`;
+    a.target="_blank";
+    a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
+    li.appendChild(a); ul.appendChild(li);
   });
 }
 
-/* ===================== AUFNAHME ===================== */
+/* ───────── AUFNAHME ───────── */
 async function startRecording() {
-  try {
-    currentStream = await navigator.mediaDevices.getDisplayMedia({ video:true, audio:true });
-    document.getElementById("preview").srcObject = currentStream;
-    document.getElementById("preview").style.display = "block";
+  try{
+    currentStream = await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+    const vid = document.getElementById("preview");
+    vid.srcObject = currentStream; vid.style.display="block";
 
-    recordedChunks = [];
-    mediaRecorder  = new MediaRecorder(currentStream);
-    mediaRecorder.ondataavailable = e => e.data.size && recordedChunks.push(e.data);
-    mediaRecorder.onstop = handleStop;
-    mediaRecorder.start();
-
-    currentStream.getVideoTracks()[0].onended = stopRecording;
+    recordedChunks=[]; mediaRecorder=new MediaRecorder(currentStream);
+    mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
+    mediaRecorder.onstop=handleStop; mediaRecorder.start();
+    currentStream.getVideoTracks()[0].onended=stopRecording;
     toggleRecButtons(true);
-  } catch (e) {
-    alert("Freigabe fehlgeschlagen: " + e);
-  }
+  }catch(e){ alert("Freigabe fehlgeschlagen: "+e); }
 }
 
-function stopRecording() {
-  if (mediaRecorder && mediaRecorder.state !== "inactive") mediaRecorder.stop();
-  if (currentStream) currentStream.getTracks().forEach(t => t.stop());
+function stopRecording(){
+  if(mediaRecorder&&mediaRecorder.state!=="inactive") mediaRecorder.stop();
+  if(currentStream) currentStream.getTracks().forEach(t=>t.stop());
   toggleRecButtons(false);
 }
 
-async function handleStop() {
-  const blob = new Blob(recordedChunks, { type:"video/webm" });
-  document.getElementById("preview").srcObject = null;
-  document.getElementById("preview").src = URL.createObjectURL(blob); // manuelles Abspielen
+async function handleStop(){
+  const blob=new Blob(recordedChunks,{type:"video/webm"});
+  const vid=document.getElementById("preview");
+  vid.srcObject=null; vid.src=URL.createObjectURL(blob);
   await uploadToDrive(blob);
 }
 
-function toggleRecButtons(rec) {
-  document.querySelector("button[onclick='startRecording()']").disabled = rec;
-  document.querySelector("button[onclick='stopRecording()']").disabled  = !rec;
+function toggleRecButtons(rec){
+  document.querySelector("button[onclick='startRecording()']").disabled=rec;
+  document.querySelector("button[onclick='stopRecording()']").disabled=!rec;
 }
 
-/* ===================== UPLOAD ===================== */
-async function uploadToDrive(blob) {
-  if (!accessToken) return alert("Bitte einloggen!");
+/* ───────── UPLOAD ───────── */
+async function uploadToDrive(blob){
+  if(!accessToken) return alert("Bitte einloggen!");
+  const folderId=document.getElementById("folderSelect").value;
+  const metadata={name:"Recording_"+new Date().toISOString()+".webm",mimeType:"video/webm",parents:[folderId]};
+  const form=new FormData();
+  form.append("metadata",new Blob([JSON.stringify(metadata)],{type:"application/json"}));
+  form.append("file",blob);
 
-  const folderId = document.getElementById("folderSelect").value;
-  const metadata = {
-    name    : "Recording_" + new Date().toISOString() + ".webm",
-    mimeType: "video/webm",
-    parents : folderId ? [folderId] : []
-  };
-
-  const form = new FormData();
-  form.append("metadata", new Blob([JSON.stringify(metadata)], { type:"application/json" }));
-  form.append("file",     blob);
-
-  document.getElementById("output").textContent = "💾 Hochladen …";
-  const up = await fetch(
-    "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
-    { method:"POST", headers:{ Authorization:"Bearer "+accessToken }, body:form }
-  );
-  const file = await up.json();
+  document.getElementById("output").textContent="💾 Hochladen …";
+  const up=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",
+      {method:"POST",headers:{Authorization:"Bearer "+accessToken},body:form});
+  const file=await up.json();
 
   await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`,{
-    method : "POST",
-    headers: {
-      Authorization  : "Bearer " + accessToken,
-      "Content-Type" : "application/json"
-    },
-    body: JSON.stringify({ role:"reader", type:"anyone" })
+    method:"POST",
+    headers:{Authorization:"Bearer "+accessToken,"Content-Type":"application/json"},
+    body:JSON.stringify({role:"reader",type:"anyone"})
   });
-
-  const link = `https://drive.google.com/file/d/${file.id}/view`;
-  document.getElementById("output").innerHTML =
-    `✅ Hochgeladen:<br><a href="${link}" target="_blank">${link}</a>`;
-  loadFolderFiles(); // Liste aktualisieren
+  const link=`https://drive.google.com/file/d/${file.id}/view`;
+  document.getElementById("output").innerHTML=`✅ Hochgeladen:<br><a href="${link}" target="_blank">${link}</a>`;
+  loadFolderFiles();
 }
 
-/* ===================== HELPER ===================== */
-async function gapi(url) {
-  const r = await fetch(url, { headers:{ Authorization:"Bearer "+accessToken } });
+/* ───────── HELPER ───────── */
+async function gapi(url){
+  const r=await fetch(url,{headers:{Authorization:"Bearer "+accessToken}});
   return r.json();
 }
 </script>
