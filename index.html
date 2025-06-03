@@ -21,7 +21,7 @@
     /* Logo */
     .logo{
       position:fixed;top:var(--logo-top);left:var(--logo-left);
-      height:var(--logo-h);z-index:1000;user-select:none;
+      height:var(--logo-h);user-select:none;z-index:1000;
     }
     @media(max-width:600px){.logo{height:90px}}
 
@@ -73,10 +73,8 @@
 </head>
 <body>
 
-<!-- Logo -->
 <img src="/logo.png" alt="My Recorder Logo" class="logo">
 
-<!-- Auth -->
 <div class="authBox">
   <button class="primary" onclick="authenticate()">🔐 Login</button>
   <span id="authStatus"></span>
@@ -84,17 +82,14 @@
 
 <div class="container">
 
-  <!-- ORDNER -->
   <h3>Aufnahme-Ordner</h3>
   <select id="folderSelect"></select>
   <button onclick="populateFolders()">🔄</button>
   <button onclick="createFolder()">➕</button>
   <p id="folderHint"></p>
 
-  <!-- DATEIEN -->
   <details><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
 
-  <!-- AUFNAHME -->
   <h3>Aufnahme</h3>
   <div class="row">
     <button class="primary" onclick="startRecording()">⏺️ Start</button>
@@ -107,9 +102,9 @@
 
 <script>
 /* ---------- Config ---------- */
-const CLIENT_ID ="532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
-const REDIRECT  ="https://my-recorder.vercel.app";
-const SCOPE     ="https://www.googleapis.com/auth/drive";
+const CLIENT_ID="532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
+const REDIRECT ="https://my-recorder.vercel.app";
+const SCOPE    ="https://www.googleapis.com/auth/drive";
 
 /* ---------- State ---------- */
 let accessToken, mediaRecorder, recordedChunks=[];
@@ -120,9 +115,9 @@ function authenticate(){
   location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
 }
 window.onload=()=>{
-  const h=new URLSearchParams(location.hash.slice(1));
-  if(h.has("access_token")){
-    accessToken=h.get("access_token");
+  const p=new URLSearchParams(location.hash.slice(1));
+  if(p.has("access_token")){
+    accessToken=p.get("access_token");
     document.getElementById("authStatus").textContent="✅ eingeloggt";
     populateFolders();
   }
@@ -131,7 +126,7 @@ window.onload=()=>{
 /* ---------- Helpers ---------- */
 async function gapi(u){return(await fetch(u,{headers:{Authorization:`Bearer ${accessToken}`}})).json();}
 
-/* ---------- Folder / List ---------- */
+/* ---------- Ordnerfunctions ---------- */
 async function populateFolders(){
   if(!accessToken)return;
   const sel=document.getElementById("folderSelect");sel.innerHTML="";
@@ -160,44 +155,51 @@ async function loadFolderFiles(){
 }
 async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`} });setStatus("✅ gelöscht");loadFolderFiles();}
 
-/* ---------- Recording (High-Quality) ---------- */
+/* ---------- Recording (HQ Video + Max-Quality Audio) ---------- */
 async function startRecording(){
   try{
-    /* 1. Bildschirm mit hoher Auflösung & 60 fps anfordern */
-    const dispConstraints={
+    /* HQ screen capture */
+    displayStream=await navigator.mediaDevices.getDisplayMedia({
       video:{
-        width :{ideal:1920,max:3840},
+        width:{ideal:1920,max:3840},
         height:{ideal:1080,max:2160},
         frameRate:{ideal:60,max:60}
       },
       audio:true
-    };
-    displayStream=await navigator.mediaDevices.getDisplayMedia(dispConstraints);
+    });
 
-    /* 2. Optional Mikrofon holen */
+    /* Studio-quality mic (48 kHz, stereo) */
     if(document.getElementById("micToggle").checked){
-      try{micStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch{micStream=null;}
+      try{
+        micStream=await navigator.mediaDevices.getUserMedia({
+          audio:{
+            sampleRate:48000,channelCount:2,
+            sampleSize:16,noiseSuppression:false,
+            echoCancellation:false,autoGainControl:false
+          }
+        });
+      }catch{micStream=null;}
     }
 
-    /* 3. Audio mixen */
+    /* Mix audio */
     audioCtx=new AudioContext({sampleRate:48000});
     const dest=audioCtx.createMediaStreamDestination();
-    const gain=audioCtx.createGain();gain.gain.value=0.8;gain.connect(dest);   // -1 dB Headroom
-    if(displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(gain);
-    if(micStream) audioCtx.createMediaStreamSource(micStream).connect(gain);
+    if(displayStream.getAudioTracks().length)
+      audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(dest);
+    if(micStream)
+      audioCtx.createMediaStreamSource(micStream).connect(dest);
 
-    /* 4. Gemischten Stream erzeugen */
     const mixed=new MediaStream([...displayStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
 
-    /* 5. Vorschau zeigen */
+    /* Preview */
     const vid=document.getElementById("preview");vid.srcObject=mixed;vid.style.display="block";await vid.play();
 
-    /* 6. Aufnahme mit VP9, 8 Mbit/s Video & 320 kbit/s Audio */
+    /* Record with VP9 + Opus @ max bitrate (510 kbit/s) */
     recordedChunks=[];
     mediaRecorder=new MediaRecorder(mixed,{
       mimeType:"video/webm;codecs=vp9,opus",
       videoBitsPerSecond:8_000_000,
-      audioBitsPerSecond:320_000
+      audioBitsPerSecond:510_000    /* Opus maximum */
     });
     mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
     mediaRecorder.onstop=handleStop;mediaRecorder.start();
@@ -206,6 +208,7 @@ async function startRecording(){
     toggleBtns(true);
   }catch(e){alert("Start fehlgeschlagen: "+e);}
 }
+
 function stopRecording(){
   mediaRecorder?.state!=="inactive"&&mediaRecorder.stop();
   [displayStream,micStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));
@@ -217,7 +220,10 @@ async function handleStop(){
   const base=(prompt("Dateiname (optional):")||"").trim().replace(/\.webm$/i,"")||"Recording_"+new Date().toISOString();
   upload(blob,`${base}.webm`);
 }
-function toggleBtns(rec){document.querySelector("button[onclick='startRecording()']").disabled=rec;document.querySelector("button[onclick='stopRecording()']").disabled=!rec}
+function toggleBtns(rec){
+  document.querySelector("button[onclick='startRecording()']").disabled=rec;
+  document.querySelector("button[onclick='stopRecording()']").disabled=!rec;
+}
 
 /* ---------- Upload ---------- */
 async function upload(blob,name){
@@ -229,10 +235,10 @@ async function upload(blob,name){
   const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:`Bearer ${accessToken}`},body:fd});
   const f=await res.json();
 
-  /* Freigabe */
+  /* Public link */
   await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
 
-  /* Warten bis Google-Drive transkodiert */
+  /* Wait for transcode */
   const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
   setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
   while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata)
