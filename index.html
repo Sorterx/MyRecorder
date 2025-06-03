@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
+  <meta charset="utf-8" />
   <title>MyRecorder</title>
   <style>
     :root{
@@ -11,7 +11,7 @@
     }
     *{box-sizing:border-box;margin:0;padding:0}
 
-    /* global */
+    /* page */
     body{
       background:var(--bg);
       color:var(--font);
@@ -19,21 +19,24 @@
       padding:0 2rem 4rem;
     }
 
-    /* huge logo fixed in the upper-left corner */
+    /* logo left top */
     .logo{
-      position:fixed;
-      top:14px;left:14px;
-      height:140px;              /* ← change size here */
-      user-select:none;
-      z-index:1000;
+      position:fixed;top:14px;left:14px;
+      height:140px;z-index:1000;user-select:none;
     }
     @media(max-width:600px){.logo{height:90px}}
 
-    /* wrapper pushed down so it doesn’t hide behind logo */
+    /* auth box right top */
+    .authBox{
+      position:fixed;top:24px;right:24px;
+      display:flex;align-items:center;gap:.8rem;
+      z-index:1000;
+    }
+    .authBox span{font-weight:600}
+
+    /* push content below logo */
     .container{
-      max-width:900px;
-      margin:0 auto;
-      padding-top:180px;          /* ≈ logo-height + margin */
+      max-width:900px;margin:0 auto;padding-top:180px;
     }
 
     h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
@@ -56,12 +59,8 @@
     .del:hover{transform:scale(1.2)}
 
     video{
-      width:100%;max-width:800px;
-      border-radius:var(--radius);
-      box-shadow:0 0 12px #000a;
-      margin-top:1rem;
-      display:none;
-      background:#000;
+      width:100%;max-width:800px;border-radius:var(--radius);
+      box-shadow:0 0 12px #000a;margin-top:1rem;display:none;background:#000
     }
 
     #status{min-width:220px;text-align:center;font-weight:600}
@@ -75,14 +74,16 @@
 </head>
 <body>
 
-<!-- big logo -->
+<!-- logo -->
 <img src="/logo.png" alt="My Recorder Logo" class="logo">
 
-<div class="container">
-
-  <!-- AUTH -->
-  <button class="primary" onclick="authenticate()">🔐 Login mit Google</button>
+<!-- auth controls top-right -->
+<div class="authBox">
+  <button class="primary" onclick="authenticate()">🔐 Login</button>
   <span id="authStatus"></span>
+</div>
+
+<div class="container">
 
   <!-- ORDNER -->
   <h3>Aufnahme-Ordner</h3>
@@ -106,12 +107,12 @@
 </div>
 
 <script>
-/* ---------- Konfiguration ---------- */
+/* ---------- Config ---------- */
 const CLIENT_ID="532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
 const REDIRECT ="https://my-recorder.vercel.app";
 const SCOPE    ="https://www.googleapis.com/auth/drive";
 
-/* ---------- Globale Variablen ---------- */
+/* ---------- State ---------- */
 let accessToken, mediaRecorder, recordedChunks=[];
 let displayStream, micStream, audioCtx;
 
@@ -119,12 +120,19 @@ let displayStream, micStream, audioCtx;
 function authenticate(){
   location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
 }
-window.onload=()=>{const h=new URLSearchParams(location.hash.slice(1));if(h.has("access_token")){accessToken=h.get("access_token");document.getElementById("authStatus").textContent="✅ eingeloggt";populateFolders();}};
+window.onload=()=>{
+  const h=new URLSearchParams(location.hash.slice(1));
+  if(h.has("access_token")){
+    accessToken=h.get("access_token");
+    document.getElementById("authStatus").textContent="✅ eingeloggt";
+    populateFolders();
+  }
+};
 
-/* ---------- Drive-Helper ---------- */
+/* ---------- Helpers ---------- */
 async function gapi(u){return(await fetch(u,{headers:{Authorization:`Bearer ${accessToken}`}})).json();}
 
-/* ---------- Ordner / Liste / Delete ---------- */
+/* ---------- Folder functions ---------- */
 async function populateFolders(){
   if(!accessToken)return;
   const sel=document.getElementById("folderSelect");sel.innerHTML="";
@@ -152,14 +160,53 @@ async function loadFolderFiles(){
 }
 async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`} });setStatus("✅ gelöscht");loadFolderFiles();}
 
-/* ---------- Aufnahme ---------- */
-async function startRecording(){/* unverändert (aus deinem Code) */}
-function stopRecording(){/* unverändert */}
-async function handleStop(){/* unverändert */}
-function toggleBtns(r){document.querySelector("button[onclick='startRecording()']").disabled=r;document.querySelector("button[onclick='stopRecording()']").disabled=!r}
+/* ---------- Recording ---------- */
+async function startRecording(){
+  try{
+    displayStream=await navigator.mediaDevices.getDisplayMedia({video:true,audio:true});
+    if(document.getElementById("micToggle").checked){try{micStream=await navigator.mediaDevices.getUserMedia({audio:true});}catch{micStream=null;}}
+    audioCtx=new AudioContext({sampleRate:48000});
+    const dest=audioCtx.createMediaStreamDestination();
+    const gain=audioCtx.createGain();gain.gain.value=0.7;gain.connect(dest);
+    if(displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(gain);
+    if(micStream) audioCtx.createMediaStreamSource(micStream).connect(gain);
+    const mixed=new MediaStream([...displayStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
+    const vid=document.getElementById("preview");vid.srcObject=mixed;vid.style.display="block";await vid.play();
+    recordedChunks=[];mediaRecorder=new MediaRecorder(mixed,{mimeType:"video/webm;codecs=vp8,opus",videoBitsPerSecond:3000000,audioBitsPerSecond:256000});
+    mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
+    mediaRecorder.onstop=handleStop;mediaRecorder.start();
+    displayStream.getVideoTracks()[0].onended=stopRecording;toggleBtns(true);
+  }catch(e){alert("Start fehlgeschlagen: "+e);}
+}
+function stopRecording(){
+  mediaRecorder?.state!=="inactive"&&mediaRecorder.stop();
+  [displayStream,micStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));
+  audioCtx?.close();audioCtx=null;toggleBtns(false);
+}
+async function handleStop(){
+  const blob=new Blob(recordedChunks,{type:"video/webm"});
+  const vid=document.getElementById("preview");vid.srcObject=null;vid.src=URL.createObjectURL(blob);
+  const base=(prompt("Dateiname (optional):")||"").trim().replace(/\.webm$/i,"")||"Recording_"+new Date().toISOString();
+  upload(blob,`${base}.webm`);
+}
+function toggleBtns(r){document.querySelector("button[onclick='startRecording()']").disabled=r;document.querySelector("button[onclick='stopRecording()']").disabled=!r;}
 
 /* ---------- Upload & Poll ---------- */
-async function upload(blob,name){/* unverändert */}
+async function upload(blob,name){
+  if(!accessToken)return alert("Bitte einloggen!");
+  const folder=document.getElementById("folderSelect").value;
+  const meta={name,mimeType:"video/webm",parents:[folder]};
+  const fd=new FormData();fd.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));fd.append("file",blob);
+  setStatus("⏳ Upload …");
+  const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:`Bearer ${accessToken}`},body:fd});
+  const f=await res.json();
+  await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
+  const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
+  setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
+  while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata) await new Promise(r=>setTimeout(r,5000));
+  setStatus(`✅ <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
+  loadFolderFiles();
+}
 function setStatus(h){document.getElementById("status").innerHTML=h;}
 </script>
 </body>
