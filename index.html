@@ -60,7 +60,14 @@
       display:none
     }
 
-    #status{min-width:220px;text-align:center;font-weight:600}
+    #status{min-width:220px;text-align:center;font-weight:600;margin-top:.5rem}
+    #progressBar {
+      width: 100%; height: 8px; background: #333; border-radius: var(--radius); overflow: hidden; margin-top: .3rem;
+    }
+    #progressFill {
+      width: 0%; height: 100%; background: var(--primary); transition: width .2s;
+    }
+
     a{color:var(--primary);text-decoration:none}
     a:hover{text-decoration:underline}
 
@@ -94,6 +101,7 @@
     <button onclick="stopRecording()" disabled>⏹️ Stop</button>
     <label><input type="checkbox" id="micToggle" checked> 🎤 Mikrofon aufnehmen</label>
     <div id="status"></div>
+    <div id="progressBar"><div id="progressFill"></div></div>
   </div>
   <video id="preview" controls playsinline muted></video>
 </div>
@@ -115,7 +123,7 @@ window.onload=()=>{
   if(p.has("access_token")){
     accessToken=p.get("access_token");
     document.getElementById("authStatus").textContent="✅ eingeloggt";
-    document.getElementById("preview").style.display="block"; // Vorschaufenster nach Login anzeigen
+    document.getElementById("preview").style.display="block";
     populateFolders();
   }
 };
@@ -238,32 +246,55 @@ async function upload(blob,name){
   if(!accessToken)return alert("Bitte einloggen!");
   const folder=document.getElementById("folderSelect").value;
   const meta={name,mimeType:"video/webm",parents:[folder]};
-  const fd=new FormData();
-  fd.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));
-  fd.append("file",blob);
+  const boundary="boundary123456";
+  const metadataBlob=new Blob([JSON.stringify(meta)],{type:"application/json"});
+  const totalSize=metadataBlob.size + blob.size;
 
-  setStatus("⏳ Upload …");
-  const res=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{
-    method:"POST",headers:{Authorization:`Bearer ${accessToken}`},body:fd
-  });
-  const f=await res.json();
+  const body=new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
+    JSON.stringify(meta),
+    `\r\n--${boundary}\r\nContent-Type: video/webm\r\n\r\n`,
+    blob,
+    `\r\n--${boundary}--`
+  ],{type:"multipart/related; boundary="+boundary});
 
-  await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{
-    method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},
-    body:JSON.stringify({role:"reader",type:"anyone"})
-  });
+  const xhr=new XMLHttpRequest();
+  xhr.open("POST","https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",true);
+  xhr.setRequestHeader("Authorization","Bearer "+accessToken);
+  xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
 
-  const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
-  setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
+  xhr.upload.onprogress=function(e){
+    if(e.lengthComputable){
+      const p=(e.loaded/e.total)*100;
+      document.getElementById("progressFill").style.width=p.toFixed(1)+"%";
+      setStatus(`⬆️ Upload ${p.toFixed(1)} % …`);
+    }
+  };
 
-  while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata)
-    await new Promise(r=>setTimeout(r,5000));
+  xhr.onload=async function(){
+    const f=JSON.parse(xhr.responseText);
+    await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{
+      method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},
+      body:JSON.stringify({role:"reader",type:"anyone"})
+    });
 
-  setStatus(`✅ <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
-  loadFolderFiles();
+    const dl=`https://www.googleapis.com/drive/v3/files/${f.id}?alt=media&access_token=${accessToken}`;
+    setStatus(`⌛ Verarbeitung …<br><a href="${dl}" target="_blank">Original</a>`);
+    document.getElementById("progressFill").style.width="0%";
+
+    while(!(await gapi(`https://www.googleapis.com/drive/v3/files/${f.id}?fields=videoMediaMetadata`)).videoMediaMetadata)
+      await new Promise(r=>setTimeout(r,5000));
+
+    setStatus(`✅ <a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
+    loadFolderFiles();
+  };
+
+  xhr.send(body);
 }
 
-function setStatus(h){document.getElementById("status").innerHTML=h;}
+function setStatus(h){
+  document.getElementById("status").innerHTML=h;
+}
 </script>
 
 <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
