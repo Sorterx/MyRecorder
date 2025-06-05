@@ -12,11 +12,12 @@
     }
     *{box-sizing:border-box;margin:0;padding:0}
 
-    body{background:var(--bg);color:var(--font);
-         font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-         padding:0 2rem 4rem;}
+    body{
+      background:var(--bg);color:var(--font);
+      font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      padding:0 2rem 4rem;
+    }
 
-    /* ─── Layout ─── */
     .logo{position:fixed;top:var(--logo-top);left:var(--logo-left);
           height:var(--logo-h);user-select:none;z-index:1000;}
     @media(max-width:600px){.logo{height:90px}}
@@ -30,7 +31,6 @@
 
     h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
 
-    /* ─── Controls ─── */
     button,select{
       padding:.55rem 1.1rem;border:none;border-radius:var(--radius);
       font-size:.9rem;font-weight:600;cursor:pointer;
@@ -49,7 +49,6 @@
          transition:transform .15s}
     .del:hover{transform:scale(1.2)}
 
-    /* ─── Preview & Status ─── */
     video{width:100%;max-width:800px;border-radius:var(--radius);
           box-shadow:0 0 12px #000a;margin-top:1rem;background:#000;display:none}
 
@@ -58,17 +57,15 @@
                  overflow:hidden;margin-top:.3rem}
     #progressFill{width:0%;height:100%;background:var(--primary);transition:width .2s}
 
-    /* ─── Misc ─── */
     a{color:var(--primary);text-decoration:none}
     a:hover{text-decoration:underline}
+
     .row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
     label{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--font-soft)}
     input[type=checkbox]{accent-color:var(--primary);width:1rem;height:1rem}
-    #mobileHint{margin-top:.75rem;font-size:.85rem;color:#f5d97a}
   </style>
 </head>
 <body>
-
 <img src="/logo.png" alt="My Recorder Logo" class="logo">
 
 <!-- Login -->
@@ -92,13 +89,12 @@
   <!-- Aufnahme -->
   <h3>Aufnahme</h3>
   <div class="row">
-    <button id="startBtn" class="primary" onclick="startRecording()">⏺️ Start</button>
+    <button class="primary" onclick="startRecording()">⏺️ Start</button>
     <button onclick="stopRecording()" disabled>⏹️ Stop</button>
     <label><input type="checkbox" id="micToggle" checked> 🎤 Mikrofon aufnehmen</label>
     <div id="status"></div>
     <div id="progressBar"><div id="progressFill"></div></div>
   </div>
-  <p id="mobileHint"></p>
   <video id="preview" controls playsinline muted></video>
 </div>
 
@@ -111,19 +107,6 @@ const SCOPE    ="https://www.googleapis.com/auth/drive";
 /* ─── STATE ─── */
 let accessToken, mediaRecorder, recordedChunks=[];
 let displayStream, micStream, audioCtx;
-
-/* ─── CAPTURE SUPPORT CHECK ─── */
-const hasCapture = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-const isAndroid  = /android/i.test(navigator.userAgent);
-if(!hasCapture){
-  document.getElementById("startBtn").disabled=true;
-  document.getElementById("mobileHint").textContent=
-    "⚠️ Dieser Browser unterstützt keine Bildschirm-Aufnahme. " +
-    "Nutze den System-Recorder und lade die Datei anschließend hoch.";
-}else if(isAndroid){
-  document.getElementById("mobileHint").textContent=
-    "ℹ️ Android 13+ & aktueller Chrome werden unterstützt. System-Audio wird evtl. nicht aufgenommen.";
-}
 
 /* ─── AUTH ─── */
 function authenticate(){
@@ -163,14 +146,15 @@ async function loadFolderFiles(){
   res.files?.forEach(f=>{
     const li=document.createElement("li");
     const del=document.createElement("span");del.textContent="✖";del.className="del";del.onclick=_=>deleteFile(f.id,f.name);
-    const a=document.createElement("a");a.href=`https://drive.google.com/file/d/${f.id}/view`;a.target="_blank";
-    a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
+    const a=document.createElement("a");a.href=`https://drive.google.com/file/d/${f.id}/view`;a.target="_blank";a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
     li.append(del,a);ul.append(li);
   });
   document.getElementById("fileSummary").textContent=`Aufzeichnungen (${res.files?.length||0})`;
 }
 async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");
-  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`}});setStatus("✅ gelöscht");loadFolderFiles();}
+  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`}});
+  setStatus("✅ gelöscht");loadFolderFiles();
+}
 
 /* ─── RECORDING ─── */
 async function startRecording(){
@@ -205,51 +189,84 @@ async function handleStop(){
   const base=(prompt("Dateiname (optional):")||"").trim().replace(/\.webm$/i,"")||"Recording_"+new Date().toISOString();
   upload(blob,`${base}.webm`);
 }
-function toggleBtns(rec){document.querySelector("#startBtn").disabled=rec;document.querySelector("button[onclick='stopRecording()']").disabled=!rec}
+function toggleBtns(rec){document.querySelector("button[onclick='startRecording()']").disabled=rec;document.querySelector("button[onclick='stopRecording()']").disabled=!rec}
 
-/* ─── UPLOAD ─── */
+/* ─── UPLOAD mit Fortschritt & Hintergrund-Polling ─── */
 async function upload(blob,name){
   if(!accessToken)return alert("Bitte einloggen!");
   const folder=document.getElementById("folderSelect").value;
   const meta={name,mimeType:"video/webm",parents:[folder]};
   const boundary="boundary123456";
-  const body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify(meta),`\r\n--${boundary}\r\nContent-Type: video/webm\r\n\r\n`,blob,`\r\n--${boundary}--`],{type:"multipart/related; boundary="+boundary});
-  document.getElementById("progressFill").style.width="0%";setStatus("⏳ Upload …");
+  const body=new Blob([
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,
+    JSON.stringify(meta),
+    `\r\n--${boundary}\r\nContent-Type: video/webm\r\n\r\n`,
+    blob,
+    `\r\n--${boundary}--`
+  ],{type:"multipart/related; boundary="+boundary});
+
+  /* Progressbar zurücksetzen */
+  document.getElementById("progressFill").style.width="0%";
+  setStatus("⏳ Upload …");
+
   const xhr=new XMLHttpRequest();
   xhr.open("POST","https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",true);
   xhr.setRequestHeader("Authorization","Bearer "+accessToken);
   xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
+
   xhr.upload.onprogress=e=>{
     if(e.lengthComputable){
-      const p=(e.loaded/e.total)*100;document.getElementById("progressFill").style.width=p.toFixed(1)+"%";
+      const p=(e.loaded/e.total)*100;
+      document.getElementById("progressFill").style.width=p.toFixed(1)+"%";
       setStatus(`⬆️ Upload ${p.toFixed(1)} % …`);
     }
   };
+
   xhr.onload=async ()=>{
-    document.getElementById("progressFill").style.width="0%";
+    document.getElementById("progressFill").style.width="0%"; /* reset */
     if(xhr.status!==200){setStatus("❌ Upload-Fehler");return;}
     const f=JSON.parse(xhr.responseText);
-    await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
+
+    /* Freigabe */
+    await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{
+      method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},
+      body:JSON.stringify({role:"reader",type:"anyone"})
+    });
+
+    /* Sofort Link + Hinweis anzeigen */
     setStatus(`⌛ Verarbeitung … (Google transkodiert)<br><a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
-    pollProcessing(f.id,name,24);loadFolderFiles();
+
+    /* Hintergrund-Polling: max 24 Versuche à 5s ≈ 2 Minuten */
+    pollProcessing(f.id,name,24);
+    loadFolderFiles(); /* Liste updaten */
   };
-  xhr.onerror=()=>setStatus("❌ Netzwerkfehler beim Upload");
+
+  xhr.onerror=()=>{setStatus("❌ Netzwerkfehler beim Upload");};
   xhr.send(body);
 }
-async function pollProcessing(id,name,max){
-  for(let i=0;i<max;i++){
+
+/* Pollt bis fertig ODER Zeitlimit erreicht */
+async function pollProcessing(id,name,maxTries){
+  for(let i=0;i<maxTries;i++){
     const meta=await gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`);
-    if(meta.videoMediaMetadata){setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`);return;}
+    if(meta.videoMediaMetadata){
+      setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`);
+      return;
+    }
     await new Promise(r=>setTimeout(r,5000));
   }
+  /* Fallback nach 2 min */
   setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a><br><small>Video wird evtl. noch verarbeitet</small>`);
 }
-function setStatus(h){document.getElementById("status").innerHTML=h;}
+
+function setStatus(html){document.getElementById("status").innerHTML=html;}
 </script>
 
 <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
-  <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
-     <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a></p>
+  <p>
+    <a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
+    <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
+  </p>
 </footer>
 </body>
 </html>
