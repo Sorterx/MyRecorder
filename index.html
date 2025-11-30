@@ -82,32 +82,50 @@
     /* ─── controls ─── */
     button,
     select {
-      padding: .55rem 1.1rem;
-      border: none;
+      padding: .5rem 1rem;
+      border: 1px solid var(--surface-2);
       border-radius: var(--radius);
       font-size: .9rem;
-      font-weight: 600;
+      font-weight: 500;
       cursor: pointer;
-      background: var(--surface-2);
+      background: transparent;
       color: var(--font);
-      transition: .15s
+      transition: all .2s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
     }
 
-    button:hover {
-      background: var(--surface)
+    button:hover,
+    select:hover {
+      background: var(--surface-2);
+      border-color: var(--surface-2);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     button.primary {
       background: var(--primary);
-      color: #fff
+      border-color: var(--primary);
+      color: #fff;
     }
 
     button.primary:hover {
-      background: var(--primary-h)
+      background: var(--primary-h);
+      border-color: var(--primary-h);
     }
 
     select {
-      appearance: none
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b0b0b0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right .7rem center;
+      background-size: 1em;
+      padding-right: 2.5rem;
     }
 
     details {
@@ -136,7 +154,9 @@
       cursor: pointer;
       font-weight: 700;
       color: var(--danger);
-      transition: transform .15s
+      transition: transform .15s;
+      display: inline-flex;
+      align-items: center;
     }
 
     .del:hover {
@@ -247,12 +267,27 @@
 
 <body>
 
-  <img src="/logo.png" alt="My Recorder Logo" class="logo">
+  <img src="myrecorderlogo.png?v=7" alt="My Recorder Logo" class="logo">
 
   <!-- Login -->
   <div class="authBox">
-    <button id="loginBtn" class="primary" onclick="authenticate()">🔐 Login</button>
-    <button id="logoutBtn" onclick="logout()" style="display:none">🚪 Logout</button>
+    <button id="loginBtn" class="primary" onclick="authenticate()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </svg>
+      Login
+    </button>
+    <button id="logoutBtn" onclick="logout()" style="display:none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" x2="9" y1="12" y2="12" />
+      </svg>
+      Logout
+    </button>
     <span id="authStatus"></span>
   </div>
 
@@ -261,8 +296,22 @@
     <!-- Ordner -->
     <h3>Aufnahme-Ordner</h3>
     <select id="folderSelect"></select>
-    <button onclick="populateFolders()">🔄</button>
-    <button onclick="createFolder()">➕</button>
+    <button onclick="populateFolders()" title="Refresh Folders">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16" />
+        <path d="M3 21v-5h5" />
+      </svg>
+    </button>
+    <button onclick="createFolder()" title="New Folder">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14" />
+        <path d="M12 5v14" />
+      </svg>
+    </button>
     <p id="folderHint"></p>
 
     <!-- Dateien -->
@@ -274,10 +323,33 @@
     <!-- Aufnahme -->
     <h3>Aufnahme</h3>
     <div class="row">
-      <button id="startBtn" class="primary" onclick="startRecording()" disabled>⏺️ Start</button>
-      <button onclick="stopRecording()" disabled>⏹️ Stop</button>
+      <button id="startBtn" class="primary" onclick="startRecording()" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <circle cx="12" cy="12" r="3" fill="currentColor" />
+        </svg>
+        Start
+      </button>
+      <button onclick="stopRecording()" disabled>
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+          <rect width="8" height="8" x="8" y="8" fill="currentColor" />
+        </svg>
+        Stop
+      </button>
       <span id="timer" class="timer">00:00</span>
-      <label><input type="checkbox" id="micToggle" checked> 🎤 Mikrofon</label>
+      <label>
+        <input type="checkbox" id="micToggle" checked>
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" x2="12" y1="19" y2="22" />
+        </svg>
+        Mikrofon
+      </label>
       <div id="status"></div>
       <div id="progressBar">
         <div id="progressFill"></div>
@@ -367,7 +439,9 @@
       const ul = document.getElementById("fileList"); ul.innerHTML = "";
       res.files?.forEach(f => {
         const li = document.createElement("li");
-        const del = document.createElement("span"); del.textContent = "✖"; del.className = "del"; del.onclick = _ => deleteFile(f.id, f.name);
+        const del = document.createElement("span");
+        del.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+        del.className = "del"; del.onclick = _ => deleteFile(f.id, f.name);
         const a = document.createElement("a"); a.href = `https://drive.google.com/file/d/${f.id}/view`; a.target = "_blank";
         a.textContent = `${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
         li.append(del, a); ul.append(li);
@@ -502,7 +576,8 @@
 
   <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
     <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
-      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a></p>
+      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
+    </p>
   </footer>
 </body>
 
