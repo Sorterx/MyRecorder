@@ -146,7 +146,7 @@
     /* ─── preview & status ─── */
     video {
       width: 100%;
-      max-width: 800px;
+      max-width: 100%;
       border-radius: var(--radius);
       box-shadow: 0 0 12px #000a;
       margin-top: 1rem;
@@ -458,7 +458,7 @@
         if (e.lengthComputable) {
           const p = (e.loaded / e.total) * 100;
           document.getElementById("progressFill").style.width = p.toFixed(1) + "%";
-          setStatus(`⬆️ Upload ${p.toFixed(1)} % …`);
+          setStatus(`⬆️ Upload ${p.toFixed(1)}% …`);
         }
       };
       xhr.onload = async () => {
@@ -472,14 +472,18 @@
       xhr.onerror = () => setStatus("❌ Netzwerkfehler beim Upload");
       xhr.send(body);
     }
+
     async function pollProcessing(id, name, max) {
       for (let i = 0; i < max; i++) {
         const meta = await gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`);
-        if (meta.videoMediaMetadata) { setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`); return; }
+        if (meta.videoMediaMetadata) {
+          setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`); return;
+        }
         await new Promise(r => setTimeout(r, 5000));
       }
       setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a><br><small>Video wird evtl. noch verarbeitet</small>`);
     }
+
     function setStatus(html) { document.getElementById("status").innerHTML = html; }
 
     /* ─── TIMER ─── */
@@ -498,8 +502,7 @@
 
   <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
     <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
-      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
-    </p>
+      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a></p>
   </footer>
 </body>
 
