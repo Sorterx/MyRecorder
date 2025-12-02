@@ -331,128 +331,170 @@
       <span id="timer" class="timer">00:00</span>
       <label>
         <input type="checkbox" id="micToggle" checked>
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" let accessToken,
-          mediaRecorder, recordedChunks=[]; let displayStream, micStream, audioCtx; let timerInterval, startTime; /* ───
-          FEATURE CHECK ─── */ const hasCapture=!!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-          const isAndroid=/android/i.test(navigator.userAgent); const
-          flagMsg="⚠️ Screen-capture is still experimental in this Chrome build.\n"
-          + "Open chrome://flags and enable “Experimental Web Platform Features”, then restart the browser." ; if
-          (!hasCapture) { // Button is already disabled by default
-          document.getElementById("mobileHint").textContent="⚠️ Dieser Browser unterstützt keine Screen-Capture-API. "
-          + "Nutze den System-Recorder und lade die Datei manuell hoch." ; } else if (isAndroid) {
-          document.getElementById("mobileHint").textContent=flagMsg; } /* ─── AUTH ─── */ function authenticate() {
-          location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
-          } function logout() { localStorage.removeItem("accessToken"); accessToken=null; location.hash="" ;
-          location.reload(); } window.onload=()=> {
-          const p = new URLSearchParams(location.hash.slice(1));
-          if (p.has("access_token")) {
-          accessToken = p.get("access_token");
-          localStorage.setItem("accessToken", accessToken);
-          location.hash = ""; // Clean URL
-          } else {
-          accessToken = localStorage.getItem("accessToken");
-          }
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+          <line x1="12" x2="12" y1="19" y2="23" />
+          <line x1="8" x2="16" y1="23" y2="23" />
+        </svg>
+      </label>
+    </details>
 
-          if (accessToken) {
-          document.getElementById("authStatus").textContent = "✅ eingeloggt";
-          document.getElementById("loginBtn").style.display = "none";
-          document.getElementById("logoutBtn").style.display = "block";
-          document.getElementById("preview").style.display = "block";
-          if (hasCapture) document.getElementById("startBtn").disabled = false; // Enable start button
-          populateFolders();
-          }
-          };
+    <ul id="fileList"></ul>
+    <p id="fileSummary" style="margin-top:1rem;color:var(--font-soft);font-size:.9rem"></p>
 
-          /* ─── HELPER ─── */
-          const gapi = async url => (await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })).json();
+    <!-- Preview -->
+    <video id="preview" autoplay muted playsinline></video>
+    <div id="status"></div>
+    <div id="progressBar">
+      <div id="progressFill"></div>
+    </div>
+    <p id="mobileHint"></p>
 
-          /* ─── ORDNER & DATEIEN ─── */
-          async function populateFolders() {
-          if (!accessToken) return;
-          const sel = document.getElementById("folderSelect"); sel.innerHTML = "";
-          const res = await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy=name&q=" +
-          encodeURIComponent("mimeType='application/vnd.google-apps.folder' and trashed=false"));
-          res.files?.forEach(f => { const o = document.createElement("option"); o.value = f.id; o.textContent = f.name;
-          sel.appendChild(o); });
-          loadFolderFiles();
-          }
-          async function createFolder() {
-          const n = prompt("Ordnername?"); if (!n) return;
-          await fetch("https://www.googleapis.com/drive/v3/files", { method: "POST", headers: { Authorization: `Bearer
-          ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ name: n, mimeType:
-          "application/vnd.google-apps.folder" }) });
-          populateFolders();
-          }
-          async function loadFolderFiles() {
-          const id = document.getElementById("folderSelect").value; if (!id) return;
-          const q = `'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
-          const res = await
-          gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime
-          desc&q=" + encodeURIComponent(q));
+  </div>
+
+  <script>
+    const CLIENT_ID = "YOUR_CLIENT_ID_HERE"; // TODO: Replace with valid Google Client ID
+    const REDIRECT = location.origin + location.pathname;
+    const SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+    let accessToken,
+      mediaRecorder, recordedChunks = []; let displayStream, micStream, audioCtx; let timerInterval, startTime; /* ───
+          FEATURE CHECK ─── */ const hasCapture = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    const isAndroid = /android/i.test(navigator.userAgent); const
+      flagMsg = "⚠️ Screen-capture is still experimental in this Chrome build.\n"
+        + "Open chrome://flags and enable “Experimental Web Platform Features”, then restart the browser."; if
+      (!hasCapture) { // Button is already disabled by default
+      document.getElementById("mobileHint").textContent = "⚠️ Dieser Browser unterstützt keine Screen-Capture-API. "
+        + "Nutze den System-Recorder und lade die Datei manuell hoch.";
+    } else if (isAndroid) {
+      document.getElementById("mobileHint").textContent = flagMsg;
+    } /* ─── AUTH ─── */ function authenticate() {
+      location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
+    } function logout() {
+      localStorage.removeItem("accessToken"); accessToken = null; location.hash = "";
+      location.reload();
+    } window.onload = () => {
+      const p = new URLSearchParams(location.hash.slice(1));
+      if (p.has("access_token")) {
+        accessToken = p.get("access_token");
+        localStorage.setItem("accessToken", accessToken);
+        location.hash = ""; // Clean URL
+      } else {
+        accessToken = localStorage.getItem("accessToken");
+      }
+
+      if (accessToken) {
+        document.getElementById("authStatus").textContent = "✅ eingeloggt";
+        document.getElementById("loginBtn").style.display = "none";
+        document.getElementById("logoutBtn").style.display = "block";
+        document.getElementById("preview").style.display = "block";
+        if (hasCapture) document.getElementById("startBtn").disabled = false; // Enable start button
+        populateFolders();
+      }
+    };
+
+    /* ─── HELPER ─── */
+    const gapi = async url => (await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })).json();
+
+    /* ─── ORDNER & DATEIEN ─── */
+    async function populateFolders() {
+      if (!accessToken) return;
+      const sel = document.getElementById("folderSelect"); sel.innerHTML = "";
+      const res = await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy=name&q=" +
+        encodeURIComponent("mimeType='application/vnd.google-apps.folder' and trashed=false"));
+      res.files?.forEach(f => {
+        const o = document.createElement("option"); o.value = f.id; o.textContent = f.name;
+        sel.appendChild(o);
+      });
+      loadFolderFiles();
+    }
+    async function createFolder() {
+      const n = prompt("Ordnername?"); if (!n) return;
+      await fetch("https://www.googleapis.com/drive/v3/files", {
+        method: "POST", headers: {
+          Authorization: `Bearer
+          ${accessToken}`, "Content-Type": "application/json"
+        }, body: JSON.stringify({
+          name: n, mimeType:
+            "application/vnd.google-apps.folder"
+        })
+      });
+      populateFolders();
+    }
+    async function loadFolderFiles() {
+      const id = document.getElementById("folderSelect").value; if (!id) return;
+      const q = `'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
+      const res = await
+        gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime
+          desc & q=" + encodeURIComponent(q));
           const ul = document.getElementById("fileList"); ul.innerHTML = "";
-          res.files?.forEach(f => {
-          const li = document.createElement("li");
-          const del = document.createElement("span");
-          del.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+      res.files?.forEach(f => {
+        const li = document.createElement("li");
+        const del = document.createElement("span");
+        del.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 6 6 18" />
             <path d="m6 6 12 12" />
           </svg>`;
-          del.className = "del"; del.onclick = _ => deleteFile(f.id, f.name);
-          const a = document.createElement("a"); a.href = `https://drive.google.com/file/d/${f.id}/view`; a.target =
+        del.className = "del"; del.onclick = _ => deleteFile(f.id, f.name);
+        const a = document.createElement("a"); a.href = `https://drive.google.com/file/d/${f.id}/view`; a.target =
           "_blank";
-          a.textContent = `${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
-          li.append(del, a); ul.append(li);
-          });
-          document.getElementById("fileSummary").textContent = `Aufzeichnungen (${res.files?.length || 0})`;
-          }
-          async function deleteFile(id, n) {
-          if (!confirm(`"${n}" löschen?`)) return; setStatus("⏳ Löschen …");
-          }
-          async function handleStop() {
-          const blob = new Blob(recordedChunks, { type: "video/webm" });
-          const vid = document.getElementById("preview"); vid.srcObject = null; vid.src = URL.createObjectURL(blob);
-          const base = (prompt("Dateiname (optional):") || "").trim().replace(/\.webm$/i, "") || "Recording_" + new
-          Date().toISOString();
-          upload(blob, `${base}.webm`);
-          xhr.send(body);
-          }
+        a.textContent = `${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
+        li.append(del, a); ul.append(li);
+      });
+      document.getElementById("fileSummary").textContent = `Aufzeichnungen (${res.files?.length || 0})`;
+    }
+    async function deleteFile(id, n) {
+      if (!confirm(`"${n}" löschen?`)) return; setStatus("⏳ Löschen …");
+    }
+    async function handleStop() {
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      const vid = document.getElementById("preview"); vid.srcObject = null; vid.src = URL.createObjectURL(blob);
+      const base = (prompt("Dateiname (optional):") || "").trim().replace(/\.webm$/i, "") || "Recording_" + new
+        Date().toISOString();
+      upload(blob, `${base}.webm`);
+      xhr.send(body);
+    }
 
-          async function pollProcessing(id, name, max) {
-          for (let i = 0; i < max; i++) { const meta=await
-            gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`); if
-            (meta.videoMediaMetadata) { setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view"
+    async function pollProcessing(id, name, max) {
+      for (let i = 0; i < max; i++) {
+        const meta = await
+          gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`); if
+          (meta.videoMediaMetadata) {
+            setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view"
             target="_blank">${name}</a>`); return;
-            }
-            await new Promise(r => setTimeout(r, 5000));
-            }
-            setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view"
+        }
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view"
               target="_blank">${name}</a><br><small>Video wird evtl. noch verarbeitet</small>`);
-            }
+    }
 
-            function setStatus(html) { document.getElementById("status").innerHTML = html; }
+    function setStatus(html) { document.getElementById("status").innerHTML = html; }
 
-            /* ─── TIMER ─── */
-            function startTimer() {
-            startTime = Date.now();
-            document.getElementById("timer").textContent = "00:00";
-            timerInterval = setInterval(() => {
-            const diff = Math.floor((Date.now() - startTime) / 1000);
-            const m = Math.floor(diff / 60).toString().padStart(2, "0");
-            const s = (diff % 60).toString().padStart(2, "0");
-            document.getElementById("timer").textContent = `${m}:${s}`;
-            }, 1000);
-            }
-            function stopTimer() { clearInterval(timerInterval); }
-            </script>
+    /* ─── TIMER ─── */
+    function startTimer() {
+      startTime = Date.now();
+      document.getElementById("timer").textContent = "00:00";
+      timerInterval = setInterval(() => {
+        const diff = Math.floor((Date.now() - startTime) / 1000);
+        const m = Math.floor(diff / 60).toString().padStart(2, "0");
+        const s = (diff % 60).toString().padStart(2, "0");
+        document.getElementById("timer").textContent = `${m}:${s}`;
+      }, 1000);
+    }
+    function stopTimer() { clearInterval(timerInterval); }
+  </script>
 
-            <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
-              <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of
-                  Service</a> ·
-                <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy
-                  Policy</a>
-              </p>
-            </footer>
+  <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
+    <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of
+        Service</a> ·
+      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy
+        Policy</a>
+    </p>
+  </footer>
 </body>
 
 </html>
