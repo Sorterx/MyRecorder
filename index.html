@@ -444,6 +444,54 @@
       });
       document.getElementById("fileSummary").textContent = `Aufzeichnungen (${res.files?.length || 0})`;
     }
+    async function startRecording() {
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+        if (document.getElementById("micToggle").checked) {
+          micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioCtx = new AudioContext();
+          const dest = audioCtx.createMediaStreamDestination();
+          if (displayStream.getAudioTracks().length > 0) {
+            audioCtx.createMediaStreamSource(displayStream).connect(dest);
+          }
+          audioCtx.createMediaStreamSource(micStream).connect(dest);
+          const tracks = [...displayStream.getVideoTracks(), ...dest.stream.getAudioTracks()];
+          displayStream = new MediaStream(tracks);
+        }
+
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(displayStream, { mimeType: "video/webm; codecs=vp9" });
+        mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+        mediaRecorder.onstop = handleStop;
+        mediaRecorder.start();
+
+        startTimer();
+        document.getElementById("startBtn").disabled = true;
+        document.getElementById("startBtn").nextElementSibling.disabled = false; // Stop btn
+        setStatus("🔴 Aufnahme läuft …");
+
+        // Stop recording if user stops sharing via browser UI
+        displayStream.getVideoTracks()[0].onended = () => stopRecording();
+
+      } catch (err) {
+        console.error(err);
+        setStatus("❌ Fehler beim Starten: " + err.message);
+      }
+    }
+
+    function stopRecording() {
+      if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+      mediaRecorder.stop();
+      stopTimer();
+      displayStream?.getTracks().forEach(t => t.stop());
+      micStream?.getTracks().forEach(t => t.stop());
+      audioCtx?.close();
+
+      document.getElementById("startBtn").disabled = false;
+      document.getElementById("startBtn").nextElementSibling.disabled = true;
+      setStatus("⏹️ Aufnahme gestoppt. Wird verarbeitet …");
+    }
+
     async function deleteFile(id, n) {
       if (!confirm(`"${n}" löschen?`)) return; setStatus("⏳ Löschen …");
     }
