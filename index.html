@@ -449,8 +449,48 @@
     }
 
     async function upload(blob, filename) {
-      console.warn("Upload function is missing. Placeholder called with:", filename);
-      setStatus("⚠️ Upload not implemented yet.");
+      const folderId = document.getElementById("folderSelect").value;
+      if (!folderId) {
+        alert("Bitte erst einen Ordner auswählen oder erstellen!");
+        return;
+      }
+      setStatus("⏳ Upload läuft...");
+
+      const metadata = {
+        name: filename,
+        mimeType: 'video/webm',
+        parents: [folderId]
+      };
+
+      const form = new FormData();
+      form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+      form.append('file', blob);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name');
+      xhr.setRequestHeader('Authorization', 'Bearer ' + accessToken);
+
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const percent = Math.round((e.loaded / e.total) * 100);
+          document.getElementById('progressFill').style.width = percent + '%';
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 200) {
+          const file = JSON.parse(xhr.responseText);
+          setStatus(`✅ Upload fertig: ${file.name}`);
+          pollProcessing(file.id, file.name, 10);
+          loadFolderFiles();
+        } else {
+          console.error('Upload error', xhr.responseText);
+          setStatus(`❌ Fehler: ${xhr.status}`);
+        }
+      };
+
+      xhr.onerror = () => setStatus("❌ Netzwerkfehler");
+      xhr.send(form);
     }
 
     async function handleStop() {
@@ -459,7 +499,6 @@
       const base = (prompt("Dateiname (optional):") || "").trim().replace(/\.webm$/i, "") || "Recording_" + new
         Date().toISOString();
       upload(blob, `${base}.webm`);
-      xhr.send(body);
     }
 
     async function pollProcessing(id, name, max) {
