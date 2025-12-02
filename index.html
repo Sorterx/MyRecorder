@@ -426,10 +426,8 @@
     async function loadFolderFiles() {
       const id = document.getElementById("folderSelect").value; if (!id) return;
       const q = `'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
-      const res = await
-        gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime
-          desc & q=" + encodeURIComponent(q));
-          const ul = document.getElementById("fileList"); ul.innerHTML = "";
+      const res = await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&q=" + encodeURIComponent(q));
+      const ul = document.getElementById("fileList"); ul.innerHTML = "";
       res.files?.forEach(f => {
         const li = document.createElement("li");
         const del = document.createElement("span");
@@ -449,6 +447,12 @@
     async function deleteFile(id, n) {
       if (!confirm(`"${n}" löschen?`)) return; setStatus("⏳ Löschen …");
     }
+
+    async function upload(blob, filename) {
+      console.warn("Upload function is missing. Placeholder called with:", filename);
+      setStatus("⚠️ Upload not implemented yet.");
+    }
+
     async function handleStop() {
       const blob = new Blob(recordedChunks, { type: "video/webm" });
       const vid = document.getElementById("preview"); vid.srcObject = null; vid.src = URL.createObjectURL(blob);
@@ -463,7 +467,7 @@
         const meta = await
           gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`); if
           (meta.videoMediaMetadata) {
-            setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view"
+          setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view"
             target="_blank">${name}</a>`); return;
         }
         await new Promise(r => setTimeout(r, 5000));
