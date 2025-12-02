@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <title>MyRecorder</title>
@@ -8,266 +9,420 @@
   <meta http-equiv="Permissions-Policy" content="display-capture=(self)">
 
   <style>
-    :root{
-      --bg:#121212;--surface:#1e1e1e;--surface-2:#262626;
-      --primary:#4f8cff;--primary-h:#3d6fd6;--danger:#e04f4f;
-      --font:#e0e0e0;--font-soft:#b0b0b0;--radius:8px;
-      --logo-top:40px;--logo-left:40px;--logo-h:140px;
+    :root {
+      --bg: #121212;
+      --surface: #1e1e1e;
+      --surface-2: #262626;
+      --primary: #4f8cff;
+      --primary-h: #3d6fd6;
+      --danger: #e04f4f;
+      --font: #e0e0e0;
+      --font-soft: #b0b0b0;
+      --radius: 8px;
+      --logo-top: 40px;
+      --logo-left: 40px;
+      --logo-h: 140px;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
 
-    body{background:var(--bg);color:var(--font);
-         font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
-         padding:0 2rem 4rem}
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--font);
+      font-family: system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      padding: 0 2rem 4rem
+    }
 
     /* ─── layout ─── */
-    .logo{position:fixed;top:var(--logo-top);left:var(--logo-left);
-          height:var(--logo-h);user-select:none;z-index:1000;}
-    @media(max-width:600px){.logo{height:90px}}
+    .logo {
+      position: fixed;
+      top: var(--logo-top);
+      left: var(--logo-left);
+      height: var(--logo-h);
+      user-select: none;
+      z-index: 1000;
+    }
 
-    .authBox{position:fixed;top:24px;right:24px;
-             display:flex;align-items:center;gap:.8rem;z-index:1000;}
-    .authBox span{font-weight:600}
+    @media(max-width:600px) {
+      .logo {
+        height: 90px
+      }
+    }
 
-    .container{max-width:900px;margin:0 auto;
-               padding-top:calc(var(--logo-h) + var(--logo-top) + 40px);}
+    .authBox {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      z-index: 1000;
+    }
 
-    h3{margin:2rem 0 .8rem;color:var(--font-soft);font-weight:500}
+    .authBox span {
+      font-weight: 600
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding-top: calc(var(--logo-h) + var(--logo-top) + 40px);
+    }
+
+    h3 {
+      margin: 2rem 0 .8rem;
+      color: var(--font-soft);
+      font-weight: 500
+    }
 
     /* ─── controls ─── */
-    button,select{padding:.55rem 1.1rem;border:none;border-radius:var(--radius);
-                  font-size:.9rem;font-weight:600;cursor:pointer;
-                  background:var(--surface-2);color:var(--font);transition:.15s}
-    button:hover{background:var(--surface)}
-    button.primary{background:var(--primary);color:#fff}
-    button.primary:hover{background:var(--primary-h)}
-    select{appearance:none}
+    button,
+    select {
+      padding: .55rem 1.1rem;
+      border: none;
+      border-radius: var(--radius);
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: var(--surface-2);
+      color: var(--font);
+      transition: .15s
+    }
 
-    details{background:var(--surface);border-radius:var(--radius);
-            padding:.5rem 1rem;margin-top:1rem}
-    summary{cursor:pointer}
-    ul{list-style:none}
-    li{display:flex;align-items:center;gap:.6rem;margin:.4rem 0}
-    .del{cursor:pointer;font-weight:700;color:var(--danger);transition:transform .15s}
-    .del:hover{transform:scale(1.2)}
+    button:hover {
+      background: var(--surface)
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: #fff
+    }
+
+    button.primary:hover {
+      background: var(--primary-h)
+    }
+
+    select {
+      appearance: none
+    }
+
+    details {
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: .5rem 1rem;
+      margin-top: 1rem
+    }
+
+    summary {
+      cursor: pointer
+    }
+
+    ul {
+      list-style: none
+    }
+
+    li {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin: .4rem 0
+    }
+
+    .del {
+      cursor: pointer;
+      font-weight: 700;
+      color: var(--danger);
+      transition: transform .15s
+    }
+
+    .del:hover {
+      transform: scale(1.2)
+    }
 
     /* ─── preview & status ─── */
-    video{width:100%;max-width:800px;border-radius:var(--radius);
-          box-shadow:0 0 12px #000a;margin-top:1rem;background:#000;display:none}
+    video {
+      width: 100%;
+      max-width: 800px;
+      border-radius: var(--radius);
+      box-shadow: 0 0 12px #000a;
+      margin-top: 1rem;
+      background: #000;
+      display: none
+    }
 
-    #status{min-width:220px;text-align:center;font-weight:600;margin-top:.5rem}
-    #progressBar{width:100%;height:8px;background:#333;
-                 border-radius:var(--radius);overflow:hidden;margin-top:.3rem}
-    #progressFill{width:0%;height:100%;background:var(--primary);transition:width .2s}
+    #status {
+      min-width: 220px;
+      text-align: center;
+      font-weight: 600;
+      margin-top: .5rem
+    }
 
-    a{color:var(--primary);text-decoration:none}
-    a:hover{text-decoration:underline}
+    #progressBar {
+      width: 100%;
+      height: 8px;
+      background: #333;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-top: .3rem
+    }
 
-    .row{display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
-    label{display:flex;align-items:center;gap:.4rem;font-size:.85rem;color:var(--font-soft)}
-    input[type=checkbox]{accent-color:var(--primary);width:1rem;height:1rem}
-    #mobileHint{margin-top:.75rem;font-size:.85rem;color:#f5d97a}
+    #progressFill {
+      width: 0%;
+      height: 100%;
+      background: var(--primary);
+      transition: width .2s
+    }
+
+    a {
+      color: var(--primary);
+      text-decoration: none
+    }
+
+    a:hover {
+      text-decoration: underline
+    }
+
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap
+    }
+
+    label {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .85rem;
+      color: var(--font-soft)
+    }
+
+    input[type=checkbox] {
+      accent-color: var(--primary);
+      width: 1rem;
+      height: 1rem
+    }
+
+    #mobileHint {
+      margin-top: .75rem;
+      font-size: .85rem;
+      color: #f5d97a
+    }
   </style>
 </head>
+
 <body>
 
-<img src="/logo.png" alt="My Recorder Logo" class="logo">
+  <img src="/logo.png" alt="My Recorder Logo" class="logo">
 
-<!-- Login -->
-<div class="authBox">
-  <button class="primary" onclick="authenticate()">🔐 Login</button>
-  <span id="authStatus"></span>
-</div>
-
-<div class="container">
-
-  <!-- Ordner -->
-  <h3>Aufnahme-Ordner</h3>
-  <select id="folderSelect"></select>
-  <button onclick="populateFolders()">🔄</button>
-  <button onclick="createFolder()">➕</button>
-  <p id="folderHint"></p>
-
-  <!-- Dateien -->
-  <details><summary id="fileSummary">Aufzeichnungen</summary><ul id="fileList"></ul></details>
-
-  <!-- Aufnahme -->
-  <h3>Aufnahme</h3>
-  <div class="row">
-    <button id="startBtn" class="primary" onclick="startRecording()">⏺️ Start</button>
-    <button onclick="stopRecording()" disabled>⏹️ Stop</button>
-    <label><input type="checkbox" id="micToggle" checked> 🎤 Mikrofon aufnehmen</label>
-    <div id="status"></div>
-    <div id="progressBar"><div id="progressFill"></div></div>
+  <!-- Login -->
+  <div class="authBox">
+    <button class="primary" onclick="authenticate()">🔐 Login</button>
+    <span id="authStatus"></span>
   </div>
-  <p id="mobileHint"></p>
-  <video id="preview" controls playsinline muted></video>
-</div>
 
-<script>
-/* ─── CONFIG ─── */
-const CLIENT_ID="532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
-const REDIRECT ="https://my-recorder.vercel.app";
-const SCOPE    ="https://www.googleapis.com/auth/drive";
+  <div class="container">
 
-/* ─── STATE ─── */
-let accessToken, mediaRecorder, recordedChunks=[];
-let displayStream, micStream, audioCtx;
+    <!-- Ordner -->
+    <h3>Aufnahme-Ordner</h3>
+    <select id="folderSelect"></select>
+    <button onclick="populateFolders()">🔄</button>
+    <button onclick="createFolder()">➕</button>
+    <p id="folderHint"></p>
 
-/* ─── FEATURE CHECK ─── */
-const hasCapture = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
-const isAndroid  = /android/i.test(navigator.userAgent);
-const flagMsg =
-  "⚠️ Screen-capture is still experimental in this Chrome build.\n" +
-  "Open chrome://flags and enable “Experimental Web Platform Features”, then restart the browser.";
+    <!-- Dateien -->
+    <details>
+      <summary id="fileSummary">Aufzeichnungen</summary>
+      <ul id="fileList"></ul>
+    </details>
 
-if(!hasCapture){
-  document.getElementById("startBtn").disabled = true;
-  document.getElementById("mobileHint").textContent =
-    "⚠️ Dieser Browser unterstützt keine Screen-Capture-API. " +
-    "Nutze den System-Recorder und lade die Datei manuell hoch.";
-}else if(isAndroid){
-  document.getElementById("mobileHint").textContent = flagMsg;
-}
+    <!-- Aufnahme -->
+    <h3>Aufnahme</h3>
+    <div class="row">
+      <button id="startBtn" class="primary" onclick="startRecording()">⏺️ Start</button>
+      <button onclick="stopRecording()" disabled>⏹️ Stop</button>
+      <label><input type="checkbox" id="micToggle" checked> 🎤 Mikrofon aufnehmen</label>
+      <div id="status"></div>
+      <div id="progressBar">
+        <div id="progressFill"></div>
+      </div>
+    </div>
+    <p id="mobileHint"></p>
+    <video id="preview" controls playsinline muted></video>
+  </div>
 
-/* ─── AUTH ─── */
-function authenticate(){
-  location.href=`https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
-}
-window.onload=()=>{
-  const p=new URLSearchParams(location.hash.slice(1));
-  if(p.has("access_token")){
-    accessToken=p.get("access_token");
-    document.getElementById("authStatus").textContent="✅ eingeloggt";
-    document.getElementById("preview").style.display="block";
-    populateFolders();
-  }
-};
+  <script>
+    /* ─── CONFIG ─── */
+    const CLIENT_ID = "532950765171-rfh9ide8056k8sstf06qhcm96iv92s22.apps.googleusercontent.com";
+    const REDIRECT = location.origin + location.pathname;
+    const SCOPE = "https://www.googleapis.com/auth/drive";
 
-/* ─── HELPER ─── */
-const gapi = async url => (await fetch(url,{headers:{Authorization:`Bearer ${accessToken}`}})).json();
+    /* ─── STATE ─── */
+    let accessToken, mediaRecorder, recordedChunks = [];
+    let displayStream, micStream, audioCtx;
 
-/* ─── ORDNER & DATEIEN ─── */
-async function populateFolders(){
-  if(!accessToken)return;
-  const sel=document.getElementById("folderSelect");sel.innerHTML="";
-  const res=await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy=name&q="+encodeURIComponent("mimeType='application/vnd.google-apps.folder' and trashed=false"));
-  res.files?.forEach(f=>{const o=document.createElement("option");o.value=f.id;o.textContent=f.name;sel.appendChild(o);});
-  loadFolderFiles();
-}
-async function createFolder(){
-  const n=prompt("Ordnername?");if(!n)return;
-  await fetch("https://www.googleapis.com/drive/v3/files",{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({name:n,mimeType:"application/vnd.google-apps.folder"})});
-  populateFolders();
-}
-async function loadFolderFiles(){
-  const id=document.getElementById("folderSelect").value;if(!id)return;
-  const q=`'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
-  const res=await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&q="+encodeURIComponent(q));
-  const ul=document.getElementById("fileList");ul.innerHTML="";
-  res.files?.forEach(f=>{
-    const li=document.createElement("li");
-    const del=document.createElement("span");del.textContent="✖";del.className="del";del.onclick=_=>deleteFile(f.id,f.name);
-    const a=document.createElement("a");a.href=`https://drive.google.com/file/d/${f.id}/view`;a.target="_blank";
-    a.textContent=`${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
-    li.append(del,a);ul.append(li);
-  });
-  document.getElementById("fileSummary").textContent=`Aufzeichnungen (${res.files?.length||0})`;
-}
-async function deleteFile(id,n){if(!confirm(`"${n}" löschen?`))return;setStatus("⏳ Löschen …");
-  await fetch(`https://www.googleapis.com/drive/v3/files/${id}`,{method:"DELETE",headers:{Authorization:`Bearer ${accessToken}`}});
-  setStatus("✅ gelöscht");loadFolderFiles();}
+    /* ─── FEATURE CHECK ─── */
+    const hasCapture = !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia);
+    const isAndroid = /android/i.test(navigator.userAgent);
+    const flagMsg =
+      "⚠️ Screen-capture is still experimental in this Chrome build.\n" +
+      "Open chrome://flags and enable “Experimental Web Platform Features”, then restart the browser.";
 
-/* ─── RECORDING ─── */
-async function startRecording(){
-  try{
-    displayStream=await navigator.mediaDevices.getDisplayMedia({
-      video:{
-        width :{ideal:1920,max:3840},
-        height:{ideal:1080,max:2160},
-        frameRate:{ideal:60,max:60},
-        // give the user a nicer default on mobile: “This tab”
-        preferCurrentTab:true
-      },
-      audio:true
-    });
-    if(document.getElementById("micToggle").checked){
-      try{micStream=await navigator.mediaDevices.getUserMedia({audio:{sampleRate:48000,channelCount:2,sampleSize:16,noiseSuppression:false,echoCancellation:false,autoGainControl:false}});}
-      catch{micStream=null;}
+    if (!hasCapture) {
+      document.getElementById("startBtn").disabled = true;
+      document.getElementById("mobileHint").textContent =
+        "⚠️ Dieser Browser unterstützt keine Screen-Capture-API. " +
+        "Nutze den System-Recorder und lade die Datei manuell hoch.";
+    } else if (isAndroid) {
+      document.getElementById("mobileHint").textContent = flagMsg;
     }
-    audioCtx=new AudioContext({sampleRate:48000});
-    const dest=audioCtx.createMediaStreamDestination();
-    if(displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(dest);
-    if(micStream) audioCtx.createMediaStreamSource(micStream).connect(dest);
-    const mixed=new MediaStream([...displayStream.getVideoTracks(),...dest.stream.getAudioTracks()]);
-    const vid=document.getElementById("preview");vid.srcObject=mixed;vid.style.display="block";await vid.play();
-    recordedChunks=[];
-    mediaRecorder=new MediaRecorder(mixed,{mimeType:"video/webm;codecs=vp9,opus",videoBitsPerSecond:8_000_000,audioBitsPerSecond:510_000});
-    mediaRecorder.ondataavailable=e=>e.data.size&&recordedChunks.push(e.data);
-    mediaRecorder.onstop=handleStop;mediaRecorder.start();
-    displayStream.getVideoTracks()[0].onended=stopRecording;
-    toggleBtns(true);
-  }catch(e){
-    if(isAndroid){alert(flagMsg);}else{alert("Start fehlgeschlagen: "+e);}
-  }
-}
-function stopRecording(){
-  mediaRecorder?.state!=="inactive"&&mediaRecorder.stop();
-  [displayStream,micStream].forEach(s=>s?.getTracks().forEach(t=>t.stop()));
-  audioCtx?.close();audioCtx=null;toggleBtns(false);
-}
-async function handleStop(){
-  const blob=new Blob(recordedChunks,{type:"video/webm"});
-  const vid=document.getElementById("preview");vid.srcObject=null;vid.src=URL.createObjectURL(blob);
-  const base=(prompt("Dateiname (optional):")||"").trim().replace(/\.webm$/i,"")||"Recording_"+new Date().toISOString();
-  upload(blob,`${base}.webm`);
-}
-function toggleBtns(rec){document.getElementById("startBtn").disabled=rec;document.querySelector("button[onclick='stopRecording()']").disabled=!rec}
 
-/* ─── UPLOAD ─── */
-async function upload(blob,name){
-  if(!accessToken)return alert("Bitte einloggen!");
-  const folder=document.getElementById("folderSelect").value;
-  const meta={name,mimeType:"video/webm",parents:[folder]};
-  const boundary="boundary123456";
-  const body=new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`,JSON.stringify(meta),`\r\n--${boundary}\r\nContent-Type: video/webm\r\n\r\n`,blob,`\r\n--${boundary}--`],{type:"multipart/related; boundary="+boundary});
-  document.getElementById("progressFill").style.width="0%";setStatus("⏳ Upload …");
-  const xhr=new XMLHttpRequest();
-  xhr.open("POST","https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",true);
-  xhr.setRequestHeader("Authorization","Bearer "+accessToken);
-  xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
-  xhr.upload.onprogress=e=>{
-    if(e.lengthComputable){
-      const p=(e.loaded/e.total)*100;
-      document.getElementById("progressFill").style.width=p.toFixed(1)+"%";
-      setStatus(`⬆️ Upload ${p.toFixed(1)} % …`);
+    /* ─── AUTH ─── */
+    function authenticate() {
+      location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
     }
-  };
-  xhr.onload=async ()=>{
-    document.getElementById("progressFill").style.width="0%";
-    if(xhr.status!==200){setStatus("❌ Upload-Fehler");return;}
-    const f=JSON.parse(xhr.responseText);
-    await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`,{method:"POST",headers:{Authorization:`Bearer ${accessToken}`,"Content-Type":"application/json"},body:JSON.stringify({role:"reader",type:"anyone"})});
-    setStatus(`⌛ Verarbeitung … (Google transkodiert)<br><a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
-    pollProcessing(f.id,name,24);loadFolderFiles();
-  };
-  xhr.onerror=()=>setStatus("❌ Netzwerkfehler beim Upload");
-  xhr.send(body);
-}
-async function pollProcessing(id,name,max){
-  for(let i=0;i<max;i++){
-    const meta=await gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`);
-    if(meta.videoMediaMetadata){setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`);return;}
-    await new Promise(r=>setTimeout(r,5000));
-  }
-  setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a><br><small>Video wird evtl. noch verarbeitet</small>`);
-}
-function setStatus(html){document.getElementById("status").innerHTML=html;}
-</script>
+    window.onload = () => {
+      const p = new URLSearchParams(location.hash.slice(1));
+      if (p.has("access_token")) {
+        accessToken = p.get("access_token");
+        document.getElementById("authStatus").textContent = "✅ eingeloggt";
+        document.getElementById("preview").style.display = "block";
+        populateFolders();
+      }
+    };
 
-<footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
-  <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
-     <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a></p>
-</footer>
+    /* ─── HELPER ─── */
+    const gapi = async url => (await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })).json();
+
+    /* ─── ORDNER & DATEIEN ─── */
+    async function populateFolders() {
+      if (!accessToken) return;
+      const sel = document.getElementById("folderSelect"); sel.innerHTML = "";
+      const res = await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name)&orderBy=name&q=" + encodeURIComponent("mimeType='application/vnd.google-apps.folder' and trashed=false"));
+      res.files?.forEach(f => { const o = document.createElement("option"); o.value = f.id; o.textContent = f.name; sel.appendChild(o); });
+      loadFolderFiles();
+    }
+    async function createFolder() {
+      const n = prompt("Ordnername?"); if (!n) return;
+      await fetch("https://www.googleapis.com/drive/v3/files", { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ name: n, mimeType: "application/vnd.google-apps.folder" }) });
+      populateFolders();
+    }
+    async function loadFolderFiles() {
+      const id = document.getElementById("folderSelect").value; if (!id) return;
+      const q = `'${id}' in parents and trashed=false and (mimeType contains 'video/' or name contains '.webm')`;
+      const res = await gapi("https://www.googleapis.com/drive/v3/files?fields=files(id,name,modifiedTime)&orderBy=modifiedTime desc&q=" + encodeURIComponent(q));
+      const ul = document.getElementById("fileList"); ul.innerHTML = "";
+      res.files?.forEach(f => {
+        const li = document.createElement("li");
+        const del = document.createElement("span"); del.textContent = "✖"; del.className = "del"; del.onclick = _ => deleteFile(f.id, f.name);
+        const a = document.createElement("a"); a.href = `https://drive.google.com/file/d/${f.id}/view`; a.target = "_blank";
+        a.textContent = `${new Date(f.modifiedTime).toLocaleString()} – ${f.name}`;
+        li.append(del, a); ul.append(li);
+      });
+      document.getElementById("fileSummary").textContent = `Aufzeichnungen (${res.files?.length || 0})`;
+    }
+    async function deleteFile(id, n) {
+      if (!confirm(`"${n}" löschen?`)) return; setStatus("⏳ Löschen …");
+      await fetch(`https://www.googleapis.com/drive/v3/files/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } });
+      setStatus("✅ gelöscht"); loadFolderFiles();
+    }
+
+    /* ─── RECORDING ─── */
+    async function startRecording() {
+      try {
+        displayStream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: 1920, max: 3840 },
+            height: { ideal: 1080, max: 2160 },
+            frameRate: { ideal: 60, max: 60 },
+            // give the user a nicer default on mobile: “This tab”
+            preferCurrentTab: true
+          },
+          audio: true
+        });
+        if (document.getElementById("micToggle").checked) {
+          try { micStream = await navigator.mediaDevices.getUserMedia({ audio: { sampleRate: 48000, channelCount: 2, sampleSize: 16, noiseSuppression: false, echoCancellation: false, autoGainControl: false } }); }
+          catch { micStream = null; }
+        }
+        audioCtx = new AudioContext({ sampleRate: 48000 });
+        const dest = audioCtx.createMediaStreamDestination();
+        if (displayStream.getAudioTracks().length) audioCtx.createMediaStreamSource(new MediaStream(displayStream.getAudioTracks())).connect(dest);
+        if (micStream) audioCtx.createMediaStreamSource(micStream).connect(dest);
+        const mixed = new MediaStream([...displayStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+        const vid = document.getElementById("preview"); vid.srcObject = mixed; vid.style.display = "block"; await vid.play();
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(mixed, { mimeType: "video/webm;codecs=vp9,opus", videoBitsPerSecond: 8_000_000, audioBitsPerSecond: 510_000 });
+        mediaRecorder.ondataavailable = e => e.data.size && recordedChunks.push(e.data);
+        mediaRecorder.onstop = handleStop; mediaRecorder.start();
+        displayStream.getVideoTracks()[0].onended = stopRecording;
+        toggleBtns(true);
+      } catch (e) {
+        if (isAndroid) { alert(flagMsg); } else { alert("Start fehlgeschlagen: " + e); }
+      }
+    }
+    function stopRecording() {
+      mediaRecorder?.state !== "inactive" && mediaRecorder.stop();
+      [displayStream, micStream].forEach(s => s?.getTracks().forEach(t => t.stop()));
+      audioCtx?.close(); audioCtx = null; toggleBtns(false);
+    }
+    async function handleStop() {
+      const blob = new Blob(recordedChunks, { type: "video/webm" });
+      const vid = document.getElementById("preview"); vid.srcObject = null; vid.src = URL.createObjectURL(blob);
+      const base = (prompt("Dateiname (optional):") || "").trim().replace(/\.webm$/i, "") || "Recording_" + new Date().toISOString();
+      upload(blob, `${base}.webm`);
+    }
+    function toggleBtns(rec) { document.getElementById("startBtn").disabled = rec; document.querySelector("button[onclick='stopRecording()']").disabled = !rec }
+
+    /* ─── UPLOAD ─── */
+    async function upload(blob, name) {
+      if (!accessToken) return alert("Bitte einloggen!");
+      const folder = document.getElementById("folderSelect").value;
+      const meta = { name, mimeType: "video/webm", parents: [folder] };
+      const boundary = "boundary123456";
+      const body = new Blob([`--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n`, JSON.stringify(meta), `\r\n--${boundary}\r\nContent-Type: video/webm\r\n\r\n`, blob, `\r\n--${boundary}--`], { type: "multipart/related; boundary=" + boundary });
+      document.getElementById("progressFill").style.width = "0%"; setStatus("⏳ Upload …");
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", "https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart", true);
+      xhr.setRequestHeader("Authorization", "Bearer " + accessToken);
+      xhr.setRequestHeader("Content-Type", "multipart/related; boundary=" + boundary);
+      xhr.upload.onprogress = e => {
+        if (e.lengthComputable) {
+          const p = (e.loaded / e.total) * 100;
+          document.getElementById("progressFill").style.width = p.toFixed(1) + "%";
+          setStatus(`⬆️ Upload ${p.toFixed(1)} % …`);
+        }
+      };
+      xhr.onload = async () => {
+        document.getElementById("progressFill").style.width = "0%";
+        if (xhr.status !== 200) { setStatus("❌ Upload-Fehler"); return; }
+        const f = JSON.parse(xhr.responseText);
+        await fetch(`https://www.googleapis.com/drive/v3/files/${f.id}/permissions`, { method: "POST", headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" }, body: JSON.stringify({ role: "reader", type: "anyone" }) });
+        setStatus(`⌛ Verarbeitung … (Google transkodiert)<br><a href="https://drive.google.com/file/d/${f.id}/view" target="_blank">${name}</a>`);
+        pollProcessing(f.id, name, 24); loadFolderFiles();
+      };
+      xhr.onerror = () => setStatus("❌ Netzwerkfehler beim Upload");
+      xhr.send(body);
+    }
+    async function pollProcessing(id, name, max) {
+      for (let i = 0; i < max; i++) {
+        const meta = await gapi(`https://www.googleapis.com/drive/v3/files/${id}?fields=videoMediaMetadata`);
+        if (meta.videoMediaMetadata) { setStatus(`✅ <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a>`); return; }
+        await new Promise(r => setTimeout(r, 5000));
+      }
+      setStatus(`🟡 <a href="https://drive.google.com/file/d/${id}/view" target="_blank">${name}</a><br><small>Video wird evtl. noch verarbeitet</small>`);
+    }
+    function setStatus(html) { document.getElementById("status").innerHTML = html; }
+  </script>
+
+  <footer style="margin-top:3rem;text-align:center;font-size:.75rem;color:var(--font-soft)">
+    <p><a href="/terms.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Terms of Service</a> ·
+      <a href="/privacy.html" target="_blank" style="color:var(--font-soft);text-decoration:none">Privacy Policy</a>
+    </p>
+  </footer>
 </body>
+
 </html>
