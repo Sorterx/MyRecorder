@@ -71,6 +71,8 @@
       max-width: 900px;
       margin: 0 auto;
       padding-top: calc(var(--logo-h) + var(--logo-top) + 40px);
+      display: none;
+      /* Hidden by default until logged in */
     }
 
     h3 {
@@ -252,6 +254,15 @@
       </svg>
       Login
     </button>
+    <button id="logoutBtn" onclick="logout()" style="display:none">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" x2="9" y1="12" y2="12" />
+      </svg>
+      Logout
+    </button>
     <span id="authStatus"></span>
   </div>
 
@@ -342,13 +353,37 @@
     function authenticate() {
       location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT)}&response_type=token&scope=${encodeURIComponent(SCOPE)}&prompt=consent`;
     }
+    function logout() {
+      localStorage.removeItem("access_token");
+      accessToken = null;
+      setAuthState(false);
+      location.hash = "";
+    }
+    function setAuthState(loggedIn) {
+      document.getElementById("loginBtn").style.display = loggedIn ? "none" : "inline-flex";
+      document.getElementById("logoutBtn").style.display = loggedIn ? "inline-flex" : "none";
+      document.querySelector(".container").style.display = loggedIn ? "block" : "none";
+      document.getElementById("authStatus").textContent = loggedIn ? "✅ eingeloggt" : "";
+      if (loggedIn) {
+        document.getElementById("preview").style.display = "block";
+        populateFolders();
+      }
+    }
+
     window.onload = () => {
       const p = new URLSearchParams(location.hash.slice(1));
       if (p.has("access_token")) {
         accessToken = p.get("access_token");
-        document.getElementById("authStatus").textContent = "✅ eingeloggt";
-        document.getElementById("preview").style.display = "block";
-        populateFolders();
+        localStorage.setItem("access_token", accessToken);
+        location.hash = "";
+        setAuthState(true);
+      } else {
+        accessToken = localStorage.getItem("access_token");
+        if (accessToken) {
+          setAuthState(true);
+        } else {
+          setAuthState(false);
+        }
       }
     };
 
