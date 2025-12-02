@@ -418,6 +418,7 @@
         displayStream.getVideoTracks()[0].onended = stopRecording;
         toggleBtns(true);
       } catch (e) {
+        if (e.name === "NotAllowedError") return;
         if (isAndroid) { alert(flagMsg); } else { alert("Start fehlgeschlagen: " + e); }
       }
     }
