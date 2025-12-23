@@ -388,7 +388,14 @@
     };
 
     /* ─── HELPER ─── */
-    const gapi = async url => (await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } })).json();
+    const gapi = async url => {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (res.status === 401) {
+        logout();
+        throw new Error("Token expired");
+      }
+      return res.json();
+    };
 
     /* ─── ORDNER & DATEIEN ─── */
     async function populateFolders() {
